@@ -1,10 +1,10 @@
-name: Build Android App Bundle
+name: Build Unsigned AAB
 
 on:
   push:
-    tags:
-      - 'v*' # Workflow berjalan saat push tag seperti v1.0.0
-  workflow_dispatch: # Memungkinkan trigger manual dari UI GitHub
+    branches:
+      - main
+  workflow_dispatch:
 
 jobs:
   build-aab:
@@ -21,39 +21,16 @@ jobs:
           distribution: 'temurin'
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v3
-        with:
-          gradle-version: '8.10.2'
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Make gradlew executable
+        run: chmod +x ./gradlew
 
       - name: Build Release AAB
-        run: gradle bundleRelease --build-cache --parallel
+        run: ./gradlew bundleRelease
 
-      - name: Upload Release AAB Artifact
+      - name: Upload Release AAB
         uses: actions/upload-artifact@v4
         with:
-          name: release-aab
-          path: app/build/outputs/bundle/release/*.aab
-          retention-days: 7
-
-      - name: Create Release
-        if: startsWith(github.ref, 'refs/tags/')
-        id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ github.ref_name }}
-          release_name: Release ${{ github.ref_name }}
-          draft: false
-          prerelease: false
-
-      - name: Upload AAB to Release
-        if: startsWith(github.ref, 'refs/tags/')
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: app/build/outputs/bundle/release/app-release.aab
-          asset_name: app-release-${{ github.ref_name }}.aab
-          asset_content_type: application/octet-stream
+          name: app-release
+          path: app/build/outputs/bundle/release/app-release.aab
