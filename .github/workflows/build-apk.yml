@@ -42,10 +42,10 @@ jobs:
             echo "debug.keystore not found. Generating a new one..."
             keytool -genkey -v \
               -keystore ./debug.keystore \
-              -storepass BUDIANTO123 \
-              -alias BUDIANTO123 \
-              -keypass BUDIANTO123 \
-              -dname "CN=BUDIANTO Debug,O=BUDIANTO,C=US" \
+              -storepass android \
+              -alias androiddebugkey \
+              -keypass android \
+              -dname "CN=Android Debug,O=Android,C=US" \
               -keyalg RSA \
               -keysize 2048 \
               -validity 10000
