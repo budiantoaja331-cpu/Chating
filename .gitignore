@@ -1,5 +1,5 @@
 *.iml
-.gradle
+.gradle/
 .kotlin
 /local.properties
 /.idea/caches
@@ -9,12 +9,12 @@
 /.idea/navEditor.xml
 /.idea/assetWizardSettings.xml
 .DS_Store
-/build
+**/build/
 /captures
 .externalNativeBuild
 .cxx
 local.properties
 .env
-debug.keystore
+*.keystore
 keystore_base64.txt
 *.jks
