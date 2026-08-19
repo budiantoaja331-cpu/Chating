@@ -26,9 +26,9 @@ android {
   signingConfigs {
     create("debugConfig") {
       storeFile = file("${rootDir}/debug.keystore")
-      storePassword = "android"
-      keyAlias = "androiddebugkey"
-      keyPassword = "android"
+      storePassword = "BUDIANTO123"
+      keyAlias = "BUDIANTO123"
+      keyPassword = "BUDIANTO123"
     }
   }
 
