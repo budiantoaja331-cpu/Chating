@@ -22,9 +22,8 @@ jobs:
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
-
-      - name: Make gradlew executable
-        run: chmod +x gradlew
+        with:
+          gradle-version: '8.10.2'
 
       - name: Decode Keystore
         env:
@@ -39,7 +38,7 @@ jobs:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
-        run: ./gradlew bundleRelease --build-cache --parallel
+        run: gradle bundleRelease --build-cache --parallel
 
       - name: Upload Release AAB Artifact
         uses: actions/upload-artifact@v4
