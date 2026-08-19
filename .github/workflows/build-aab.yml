@@ -29,11 +29,8 @@ jobs:
         with:
           validate-wrappers: false
 
-      - name: Make gradlew executable
-        run: chmod +x ./gradlew
-
       - name: Build Release AAB
-        run: ./gradlew bundleRelease
+        run: gradle bundleRelease
 
       - name: Upload Release AAB Artifact
         uses: actions/upload-artifact@v4
