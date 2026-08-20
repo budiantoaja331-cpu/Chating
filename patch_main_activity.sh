@@ -1,0 +1,1 @@
+sed -i '/ChatRoomScreen(/a \                    onNavigateToCall = { targetUserId, isVideo ->\n                        val channelId = "call_" + minOf(userId, targetUserId) + "_" + maxOf(userId, targetUserId)\n                        navController.navigate("callScreen/$channelId/$isVideo")\n                    },' app/src/main/java/com/example/MainActivity.kt

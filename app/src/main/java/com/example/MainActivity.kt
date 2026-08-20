@@ -4,35 +4,36 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.Message
-import androidx.compose.material.icons.automirrored.outlined.Send
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.outlined.BookmarkBorder
-import androidx.compose.material.icons.outlined.FavoriteBorder
-import androidx.compose.material.icons.outlined.Image
-import androidx.compose.material.icons.outlined.MoreVert
+import androidx.compose.material.icons.filled.Chat
+import androidx.compose.material.icons.filled.Call
+import androidx.compose.material.icons.outlined.Call
+import androidx.compose.material.icons.filled.DynamicFeed
+import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.outlined.Chat
+import androidx.compose.material.icons.outlined.DynamicFeed
+import androidx.compose.material.icons.outlined.LocationOn
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material3.*
-import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavType
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
+
 import com.example.ui.theme.MyApplicationTheme
 
 class MainActivity : ComponentActivity() {
@@ -41,311 +42,171 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             MyApplicationTheme {
-                SocialFeedScreen()
+                RootScreen()
             }
         }
     }
 }
 
-data class Post(
-    val id: String,
-    val authorName: String,
-    val authorHandle: String,
-    val timestamp: String,
-    val content: String,
-    val hasImage: Boolean = false,
-    val likesCount: Int,
-    val commentsCount: Int,
-    val isLikedByMe: Boolean = false
-)
-
-val dummyPosts = listOf(
-    Post(
-        id = "1",
-        authorName = "Alex Rivera",
-        authorHandle = "@arivera",
-        timestamp = "2h",
-        content = "Just finished setting up my new workspace! 🚀 The productivity levels are going to be off the charts.",
-        hasImage = true,
-        likesCount = 142,
-        commentsCount = 28
-    ),
-    Post(
-        id = "2",
-        authorName = "Sarah Chen",
-        authorHandle = "@sarahc_dev",
-        timestamp = "4h",
-        content = "Can we all agree that Jetpack Compose is an absolute game-changer for Android development? I've never built UIs this fast before.",
-        hasImage = false,
-        likesCount = 385,
-        commentsCount = 64,
-        isLikedByMe = true
-    ),
-    Post(
-        id = "3",
-        authorName = "Design Daily",
-        authorHandle = "@designdaily",
-        timestamp = "5h",
-        content = "Minimalism isn't about removing things until there's nothing left. It's about removing the unnecessary so the necessary may speak. ✨",
-        hasImage = true,
-        likesCount = 892,
-        commentsCount = 104
-    ),
-    Post(
-        id = "4",
-        authorName = "Tech Insider",
-        authorHandle = "@techinsider",
-        timestamp = "8h",
-        content = "Breaking: AI models are now capable of generating entire applications from a single prompt. The future of coding is evolving rapidly.",
-        hasImage = false,
-        likesCount = 1240,
-        commentsCount = 312
-    )
-)
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun SocialFeedScreen() {
-    var posts by remember { mutableStateOf(dummyPosts) }
-
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { 
-                    Text(
-                        "Socialize", 
-                        fontWeight = FontWeight.Bold,
-                        style = MaterialTheme.typography.titleLarge
-                    ) 
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background
-                ),
-                actions = {
-                    IconButton(onClick = { /* TODO */ }) {
-                        Icon(
-                            imageVector = Icons.Outlined.Person,
-                            contentDescription = "Profile",
-                            modifier = Modifier.testTag("profile_button")
-                        )
-                    }
-                }
-            )
-        },
-        floatingActionButton = {
-            FloatingActionButton(
-                onClick = { /* TODO: New Post */ },
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary,
-                modifier = Modifier.testTag("new_post_fab")
-            ) {
-                Icon(Icons.Filled.Add, "New Post")
-            }
-        },
-        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-    ) { innerPadding ->
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding),
-            contentPadding = PaddingValues(bottom = 80.dp)
-        ) {
-            items(posts, key = { it.id }) { post ->
-                PostCard(
-                    post = post,
-                    onLikeClick = {
-                        posts = posts.map {
-                            if (it.id == post.id) {
-                                it.copy(
-                                    isLikedByMe = !it.isLikedByMe,
-                                    likesCount = if (it.isLikedByMe) it.likesCount - 1 else it.likesCount + 1
-                                )
-                            } else it
-                        }
-                    }
-                )
-            }
-        }
-    }
-}
-
-@Composable
-fun PostCard(post: Post, onLikeClick: () -> Unit) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp),
-        shape = RoundedCornerShape(0.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.background
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-    ) {
-        Column(
-            modifier = Modifier.padding(top = 16.dp, bottom = 12.dp, start = 16.dp, end = 16.dp)
-        ) {
-            // Header
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                // Avatar Placeholder
-                Box(
-                    modifier = Modifier
-                        .size(48.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.primaryContainer),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = post.authorName.first().toString(),
-                        color = MaterialTheme.colorScheme.onPrimaryContainer,
-                        fontWeight = FontWeight.Bold,
-                        style = MaterialTheme.typography.titleMedium
-                    )
-                }
-                
-                Spacer(modifier = Modifier.width(12.dp))
-                
-                Column(modifier = Modifier.weight(1f)) {
-                    Row(verticalAlignment = Alignment.Bottom) {
-                        Text(
-                            text = post.authorName,
-                            fontWeight = FontWeight.Bold,
-                            style = MaterialTheme.typography.bodyLarge,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = post.authorHandle,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            style = MaterialTheme.typography.bodyMedium,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
-                    Text(
-                        text = post.timestamp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                }
-                
-                IconButton(
-                    onClick = { /* TODO */ },
-                    modifier = Modifier.size(24.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.MoreVert,
-                        contentDescription = "More options",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-            
-            Spacer(modifier = Modifier.height(12.dp))
-            
-            // Content
-            Text(
-                text = post.content,
-                style = MaterialTheme.typography.bodyLarge,
-                lineHeight = MaterialTheme.typography.bodyLarge.lineHeight * 1.1f
-            )
-            
-            if (post.hasImage) {
-                Spacer(modifier = Modifier.height(12.dp))
-                // Image Placeholder
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(200.dp)
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(MaterialTheme.colorScheme.secondaryContainer),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.Image,
-                        contentDescription = null,
-                        modifier = Modifier.size(48.dp),
-                        tint = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.5f)
-                    )
-                }
-            }
-            
-            Spacer(modifier = Modifier.height(16.dp))
-            
-            // Actions
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                PostAction(
-                    icon = Icons.AutoMirrored.Outlined.Message,
-                    text = post.commentsCount.toString(),
-                    contentDescription = "Comment",
-                    onClick = { /* TODO */ }
-                )
-                
-                PostAction(
-                    icon = if (post.isLikedByMe) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
-                    text = post.likesCount.toString(),
-                    contentDescription = "Like",
-                    tint = if (post.isLikedByMe) Color(0xFFE91E63) else MaterialTheme.colorScheme.onSurfaceVariant,
-                    onClick = onLikeClick
-                )
-                
-                PostAction(
-                    icon = Icons.AutoMirrored.Outlined.Send,
-                    text = "",
-                    contentDescription = "Share",
-                    onClick = { /* TODO */ }
-                )
-                
-                IconButton(
-                    onClick = { /* TODO */ },
-                    modifier = Modifier.size(32.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.BookmarkBorder,
-                        contentDescription = "Save",
-                        modifier = Modifier.size(20.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun PostAction(
-    icon: ImageVector,
-    text: String,
-    contentDescription: String,
-    tint: Color = MaterialTheme.colorScheme.onSurfaceVariant,
-    onClick: () -> Unit
+sealed class Screen(
+    val route: String, 
+    val title: String, 
+    val activeIcon: ImageVector, 
+    val inactiveIcon: ImageVector
 ) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier
-            .clip(RoundedCornerShape(16.dp))
-            .clickable(onClick = onClick)
-            .padding(horizontal = 8.dp, vertical = 4.dp)
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = contentDescription,
-            modifier = Modifier.size(20.dp),
-            tint = tint
+    object Nearby : Screen("nearby", "Teman", Icons.Filled.LocationOn, Icons.Outlined.LocationOn)
+    object Story : Screen("story", "Story", Icons.Filled.DynamicFeed, Icons.Outlined.DynamicFeed)
+    object Chat : Screen("chat", "Obrolan", Icons.Filled.Chat, Icons.Outlined.Chat)
+    object CallHistory : Screen("call_history", "Panggilan", Icons.Filled.Call, Icons.Outlined.Call)
+    object Profile : Screen("profile", "Profil", Icons.Filled.Person, Icons.Outlined.Person)
+}
+
+@Composable
+fun RootScreen() {
+    val authViewModel: AuthViewModel = viewModel()
+    val authState by authViewModel.authState.collectAsState()
+
+    when (val state = authState) {
+        is AuthState.Success -> {
+            MainAppScreen(state.userId, state.userName)
+        }
+        else -> {
+            LoginScreen(authViewModel)
+        }
+    }
+}
+
+@Composable
+fun MainAppScreen(userId: String, userName: String) {
+    val navController = rememberNavController()
+    val context = LocalContext.current
+    val callManager = remember(userId) { ActiveCallManager(userId) }
+    val incomingCall by callManager.incomingCall.collectAsState()
+
+    DisposableEffect(userId) {
+        callManager.startListening()
+        onDispose { callManager.stopListening() }
+    }
+
+    incomingCall?.let { call ->
+        IncomingCallDialog(
+            call = call,
+            onAccept = {
+                callManager.acceptCall(call.id)
+                navController.navigate("callScreen/${call.channelId}/${call.isVideoCall}")
+            },
+            onReject = {
+                callManager.rejectCall(call.id)
+            }
         )
-        if (text.isNotEmpty()) {
-            Spacer(modifier = Modifier.width(6.dp))
-            Text(
-                text = text,
-                style = MaterialTheme.typography.labelLarge,
-                color = tint
-            )
+    }
+    
+    val appViewModelFactory = remember { AppViewModelFactory(userId, userName) }
+    
+    val items = listOf(
+        Screen.Nearby,
+        Screen.Story,
+        Screen.Chat,
+        Screen.CallHistory,
+        Screen.Profile
+    )
+    
+    Scaffold(
+        bottomBar = {
+            NavigationBar(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+            ) {
+                val navBackStackEntry by navController.currentBackStackEntryAsState()
+                val currentRoute = navBackStackEntry?.destination?.route
+                
+                items.forEach { screen ->
+                    val selected = currentRoute == screen.route
+                    NavigationBarItem(
+                        icon = { 
+                            Icon(
+                                imageVector = if (selected) screen.activeIcon else screen.inactiveIcon, 
+                                contentDescription = screen.title 
+                            ) 
+                        },
+                        label = { Text(screen.title) },
+                        selected = selected,
+                        onClick = {
+                            navController.navigate(screen.route) {
+                                popUpTo(navController.graph.startDestinationId) {
+                                    saveState = true
+                                }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        }
+                    )
+                }
+            }
+        }
+    ) { innerPadding ->
+        NavHost(
+            navController = navController, 
+            startDestination = Screen.Story.route,
+            modifier = Modifier.padding(innerPadding)
+        ) {
+            composable(Screen.Nearby.route) { 
+                NearbyScreen(viewModel = viewModel(factory = appViewModelFactory), onNavigateToChat = { otherUserId, otherUserName ->
+                    navController.navigate("chatRoom/$otherUserId/$otherUserName")
+                }) 
+            }
+            composable(Screen.Story.route) { StoryScreen(viewModel = viewModel(factory = appViewModelFactory)) }
+            composable(Screen.CallHistory.route) { 
+                CallHistoryScreen(viewModel = viewModel(factory = appViewModelFactory), onNavigateToCall = { otherId, otherName, isVideo -> 
+                    val channelId = "call_" + minOf(userId, otherId) + "_" + maxOf(userId, otherId)
+                    callManager.initiateCall(userName, otherId, otherName, isVideo, channelId)
+                    navController.navigate("callScreen/$channelId/$isVideo") 
+                }) 
+            }
+            composable(Screen.Chat.route) { 
+                ChatListScreen(viewModel = viewModel(factory = appViewModelFactory), onNavigateToChat = { otherUserId, otherUserName ->
+                    navController.navigate("chatRoom/$otherUserId/$otherUserName")
+                })
+            }
+            composable(
+                route = "callScreen/{channelId}/{isVideo}",
+                arguments = listOf(
+                    navArgument("channelId") { type = NavType.StringType },
+                    navArgument("isVideo") { type = NavType.BoolType }
+                )
+            ) { backStackEntry ->
+                val channelId = backStackEntry.arguments?.getString("channelId") ?: ""
+                val isVideo = backStackEntry.arguments?.getBoolean("isVideo") ?: false
+                CallScreen(
+                    channelName = channelId,
+                    isVideoCall = isVideo,
+                    onNavigateBack = { navController.navigateUp() }
+                )
+            }
+            composable(Screen.Profile.route) { UserProfileScreen(viewModel(factory = appViewModelFactory)) }
+            
+            composable(
+                route = "chatRoom/{otherUserId}/{otherUserName}",
+                arguments = listOf(
+                    navArgument("otherUserId") { type = NavType.StringType },
+                    navArgument("otherUserName") { type = NavType.StringType }
+                )
+            ) { backStackEntry ->
+                val otherUserId = backStackEntry.arguments?.getString("otherUserId") ?: ""
+                val otherUserName = backStackEntry.arguments?.getString("otherUserName") ?: ""
+                ChatRoomScreen(
+                    onNavigateToCall = { targetUserId, isVideo ->
+                        val channelId = "call_" + minOf(userId, targetUserId) + "_" + maxOf(userId, targetUserId)
+                        callManager.initiateCall(userName, targetUserId, otherUserName, isVideo, channelId)
+                        navController.navigate("callScreen/$channelId/$isVideo")
+                    },
+                    currentUserId = userId,
+                    currentUserName = userName,
+                    otherUserId = otherUserId,
+                    otherUserName = otherUserName,
+                    onNavigateBack = { navController.navigateUp() }
+                )
+            }
         }
     }
 }

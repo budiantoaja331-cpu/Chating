@@ -1,0 +1,3 @@
+sed -i 's/    val factory = remember { ChatRoomViewModelFactory(otherUserId, otherUserName) }/    val context = androidx.compose.ui.platform.LocalContext.current\n    val userManager = remember { UserManager(context) }\n    val currentUserId = remember { userManager.getUserId() }\n    val currentUserName = remember { userManager.getUserName() }\n\n    val factory = remember { ChatRoomViewModelFactory(otherUserId, otherUserName, currentUserId, currentUserName) }/' app/src/main/java/com/example/ChatRoomScreen.kt
+
+sed -i 's/    val currentUserId = "my_user_id"/\/\/    val currentUserId = "my_user_id"/' app/src/main/java/com/example/ChatRoomScreen.kt

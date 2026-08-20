@@ -1,0 +1,1 @@
+sed -i 's/val uiState by viewModel.uiState.collectAsState()/val uiState by viewModel.uiState.collectAsState()\n    val context = androidx.compose.ui.platform.LocalContext.current\n    val userManager = remember { UserManager(context) }\n    val currentUserId = remember { userManager.getUserId() }/' app/src/main/java/com/example/StoryScreen.kt

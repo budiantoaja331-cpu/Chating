@@ -1,0 +1,80 @@
+package com.example
+
+import android.util.Log
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.google.firebase.firestore.FirebaseFirestore
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
+
+data class UserProfile(
+    val id: String = "",
+    val name: String = "",
+    val bio: String = "",
+    val avatarUrl: String = ""
+)
+
+sealed class UserProfileUiState {
+    object Loading : UserProfileUiState()
+    data class Success(val profile: UserProfile) : UserProfileUiState()
+    data class Error(val message: String) : UserProfileUiState()
+}
+
+class UserProfileViewModel(private val userId: String = "my_user_id") : ViewModel() {
+
+    private val db = FirebaseFirestore.getInstance()
+    private val profilesCollection = db.collection("users")
+
+    private val _uiState = MutableStateFlow<UserProfileUiState>(UserProfileUiState.Loading)
+    val uiState: StateFlow<UserProfileUiState> = _uiState.asStateFlow()
+
+    init {
+        loadProfile()
+    }
+
+    private fun loadProfile() {
+        _uiState.value = UserProfileUiState.Loading
+        viewModelScope.launch {
+            try {
+                val document = profilesCollection.document(userId).get().await()
+                if (document.exists()) {
+                    val profile = document.toObject(UserProfile::class.java)
+                    if (profile != null) {
+                        _uiState.value = UserProfileUiState.Success(profile)
+                    } else {
+                        _uiState.value = UserProfileUiState.Error("Failed to parse profile")
+                    }
+                } else {
+                    // Profile doesn't exist yet, create a default one
+                    val newProfile = UserProfile(id = userId, name = "New User", bio = "This is my bio.")
+                    _uiState.value = UserProfileUiState.Success(newProfile)
+                }
+            } catch (e: Exception) {
+                Log.e("UserProfileViewModel", "Error loading profile", e)
+                _uiState.value = UserProfileUiState.Error(e.localizedMessage ?: "Unknown error")
+            }
+        }
+    }
+
+    fun updateProfile(name: String, bio: String) {
+        val currentState = _uiState.value
+        if (currentState is UserProfileUiState.Success) {
+            val updatedProfile = currentState.profile.copy(name = name, bio = bio)
+            _uiState.value = UserProfileUiState.Success(updatedProfile) // Optimistic update
+            
+            viewModelScope.launch {
+                try {
+                    profilesCollection.document(userId).set(updatedProfile).await()
+                } catch (e: Exception) {
+                    Log.e("UserProfileViewModel", "Error updating profile", e)
+                    // Revert to old state on failure if needed, or show error
+                    _uiState.value = UserProfileUiState.Error("Failed to update profile: ${e.message}")
+                }
+            }
+        }
+    }
+}
