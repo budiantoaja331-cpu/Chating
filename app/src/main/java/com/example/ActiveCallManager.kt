@@ -1,4 +1,5 @@
 package com.example
+import androidx.annotation.Keep
 
 import android.util.Log
 import com.google.firebase.firestore.FirebaseFirestore
@@ -7,6 +8,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
+@Keep
 data class ActiveCall(
     val id: String = "",
     val callerId: String = "",

@@ -1,0 +1,3 @@
+sed -i 's/class UserProfileViewModel(private val userId: String = "my_user_id") : ViewModel() {/class UserProfileViewModel(\n    private val userId: String = "my_user_id",\n    private val userName: String = "New User",\n    private val profileImageUrl: String? = null\n) : ViewModel() {/' app/src/main/java/com/example/UserProfileViewModel.kt
+
+sed -i 's/val newProfile = UserProfile(id = userId, name = "New User", bio = "This is my bio.")/val newProfile = UserProfile(id = userId, name = userName, bio = "This is my bio.", avatarUrl = profileImageUrl ?: "")/' app/src/main/java/com/example/UserProfileViewModel.kt

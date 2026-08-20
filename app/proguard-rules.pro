@@ -1,21 +1,26 @@
-# Add project specific ProGuard rules here.
-# You can control the set of applied configuration files using the
-# proguardFiles setting in build.gradle.
-#
-# For more details, see
-#   http://developer.android.com/guide/developing/tools/proguard.html
+# Firebase Firestore
+-keepattributes Signature
+-keepclassmembers class * {
+  @com.google.firebase.firestore.PropertyName <fields>;
+}
+-keep class com.example.Story { *; }
+-keep class com.example.ActiveCall { *; }
+-keep class com.example.CallRecord { *; }
+-keep class com.example.ChatMessage { *; }
+-keep class com.example.User { *; }
+-keep class com.example.** { *; }
 
-# If your project uses WebView with JS, uncomment the following
-# and specify the fully qualified class name to the JavaScript interface
-# class:
-#-keepclassmembers class fqcn.of.javascript.interface.for.webview {
-#   public *;
-#}
+# Agora
+-keep class io.agora.** { *; }
+-keep class io.agora.rtc2.** { *; }
+-dontwarn io.agora.**
 
-# Uncomment this to preserve the line number information for
-# debugging stack traces.
-#-keepattributes SourceFile,LineNumberTable
+# Coroutines
+-keepnames class kotlinx.coroutines.internal.MainDispatcherFactory {}
+-keepnames class kotlinx.coroutines.CoroutineExceptionHandler {}
 
-# If you keep the line number information, uncomment this to
-# hide the original source file name.
-#-renamesourcefileattribute SourceFile
+# Firebase Auth & Credential Manager
+-keep class com.google.firebase.auth.** { *; }
+-keep class androidx.credentials.** { *; }
+-keep class com.google.android.libraries.identity.googleid.** { *; }
+-keep class com.example.MyApplication { *; }

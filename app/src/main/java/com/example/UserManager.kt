@@ -1,4 +1,5 @@
 package com.example
+import androidx.annotation.Keep
 
 import android.content.Context
 import android.content.SharedPreferences

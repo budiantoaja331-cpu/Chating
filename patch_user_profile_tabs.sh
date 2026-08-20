@@ -1,3 +1,4 @@
+cat << 'INNER_EOF' > app/src/main/java/com/example/UserProfileScreen.kt
 package com.example
 
 import androidx.compose.foundation.background
@@ -37,7 +38,7 @@ fun UserProfileScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Profil Saya", fontWeight = FontWeight.Bold) },
+                title = { Text("My Profile", fontWeight = FontWeight.Bold) },
                 actions = {
                     if (uiState is UserProfileUiState.Success) {
                         IconButton(onClick = {
@@ -55,7 +56,7 @@ fun UserProfileScreen(
                         }) {
                             Icon(
                                 imageVector = if (isEditing) Icons.Filled.Edit else Icons.Filled.Edit,
-                                contentDescription = if (isEditing) "Simpan Profil" else "Edit Profil",
+                                contentDescription = if (isEditing) "Save Profile" else "Edit Profile",
                                 tint = if (isEditing) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
                             )
                         }
@@ -127,7 +128,7 @@ fun UserProfileScreen(
                                     OutlinedTextField(
                                         value = editName,
                                         onValueChange = { editName = it },
-                                        label = { Text("Nama") },
+                                        label = { Text("Name") },
                                         modifier = Modifier.fillMaxWidth(),
                                         singleLine = true
                                     )
@@ -148,7 +149,7 @@ fun UserProfileScreen(
                                         },
                                         modifier = Modifier.fillMaxWidth()
                                     ) {
-                                        Text("Simpan Profil")
+                                        Text("Save Profile")
                                     }
                                 } else {
                                     Text(
@@ -291,3 +292,4 @@ fun UserProfileScreen(
         }
     }
 }
+INNER_EOF

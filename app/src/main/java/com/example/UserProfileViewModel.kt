@@ -11,7 +11,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 
-data class UserProfile(
+@androidx.annotation.Keep data class UserProfile(
     val id: String = "",
     val name: String = "",
     val bio: String = "",
@@ -24,7 +24,11 @@ sealed class UserProfileUiState {
     data class Error(val message: String) : UserProfileUiState()
 }
 
-class UserProfileViewModel(private val userId: String = "my_user_id") : ViewModel() {
+class UserProfileViewModel(
+    private val userId: String = "my_user_id",
+    private val userName: String = "New User",
+    private val profileImageUrl: String? = null
+) : ViewModel() {
 
     private val db = FirebaseFirestore.getInstance()
     private val profilesCollection = db.collection("users")
@@ -50,7 +54,7 @@ class UserProfileViewModel(private val userId: String = "my_user_id") : ViewMode
                     }
                 } else {
                     // Profile doesn't exist yet, create a default one
-                    val newProfile = UserProfile(id = userId, name = "New User", bio = "This is my bio.")
+                    val newProfile = UserProfile(id = userId, name = userName, bio = "This is my bio.", avatarUrl = profileImageUrl ?: "")
                     _uiState.value = UserProfileUiState.Success(newProfile)
                 }
             } catch (e: Exception) {

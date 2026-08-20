@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 
 class AppViewModelFactory(
+    private val profileImageUrl: String? = null,
     private val userId: String,
     private val userName: String
 ) : ViewModelProvider.Factory {
@@ -22,7 +23,7 @@ class AppViewModelFactory(
         }
         if (modelClass.isAssignableFrom(UserProfileViewModel::class.java)) {
             @Suppress("UNCHECKED_CAST")
-            return UserProfileViewModel(userId) as T
+            return UserProfileViewModel(userId, userName, profileImageUrl) as T
         }
         if (modelClass.isAssignableFrom(CallHistoryViewModel::class.java)) {
             @Suppress("UNCHECKED_CAST")

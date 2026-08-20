@@ -1,5 +1,7 @@
 package com.example
+import androidx.annotation.Keep
 
+@Keep
 data class ChatMessage(
     val id: String = "",
     val senderId: String = "",
@@ -7,7 +9,7 @@ data class ChatMessage(
     val timestamp: Long = 0L
 )
 
-data class ChatChannel(
+@androidx.annotation.Keep data class ChatChannel(
     val id: String = "",
     val participants: List<String> = emptyList(),
     val participantNames: Map<String, String> = emptyMap(),

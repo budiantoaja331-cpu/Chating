@@ -1,0 +1,1 @@
+sed -i 's/fun StoryCard(story: Story, currentUserId: String, onLikeClick: () -> Unit)/fun StoryCard(story: Story, currentUserId: String, onLikeClick: () -> Unit, onCommentClick: () -> Unit)/' app/src/main/java/com/example/StoryScreen.kt

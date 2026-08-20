@@ -1,0 +1,1 @@
+sed -i 's/composable(Screen.Profile.route) { UserProfileScreen(viewModel(factory = appViewModelFactory)) }/composable(Screen.Profile.route) { UserProfileScreen(viewModel(factory = appViewModelFactory), viewModel(factory = appViewModelFactory)) }/' app/src/main/java/com/example/MainActivity.kt

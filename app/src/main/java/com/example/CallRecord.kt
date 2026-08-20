@@ -1,5 +1,7 @@
 package com.example
+import androidx.annotation.Keep
 
+@Keep
 data class CallRecord(
     val id: String = "",
     val participants: List<String> = emptyList(), // [callerId, receiverId] for easy querying

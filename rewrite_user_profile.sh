@@ -1,3 +1,4 @@
+cat << 'INNER_EOF' > app/src/main/java/com/example/UserProfileScreen.kt
 package com.example
 
 import androidx.compose.foundation.background
@@ -32,12 +33,11 @@ fun UserProfileScreen(
     var editBio by remember { mutableStateOf("") }
 
     var selectedStoryForComments: Story? by remember { mutableStateOf(null) }
-    var selectedTab by remember { mutableStateOf(0) } // 0 = My Posts, 1 = Saved
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Profil Saya", fontWeight = FontWeight.Bold) },
+                title = { Text("My Profile", fontWeight = FontWeight.Bold) },
                 actions = {
                     if (uiState is UserProfileUiState.Success) {
                         IconButton(onClick = {
@@ -55,7 +55,7 @@ fun UserProfileScreen(
                         }) {
                             Icon(
                                 imageVector = if (isEditing) Icons.Filled.Edit else Icons.Filled.Edit,
-                                contentDescription = if (isEditing) "Simpan Profil" else "Edit Profil",
+                                contentDescription = if (isEditing) "Save Profile" else "Edit Profile",
                                 tint = if (isEditing) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
                             )
                         }
@@ -127,7 +127,7 @@ fun UserProfileScreen(
                                     OutlinedTextField(
                                         value = editName,
                                         onValueChange = { editName = it },
-                                        label = { Text("Nama") },
+                                        label = { Text("Name") },
                                         modifier = Modifier.fillMaxWidth(),
                                         singleLine = true
                                     )
@@ -148,7 +148,7 @@ fun UserProfileScreen(
                                         },
                                         modifier = Modifier.fillMaxWidth()
                                     ) {
-                                        Text("Simpan Profil")
+                                        Text("Save Profile")
                                     }
                                 } else {
                                     Text(
@@ -167,46 +167,35 @@ fun UserProfileScreen(
                                 }
                             }
                             HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
-                            
-                            TabRow(selectedTabIndex = selectedTab) {
-                                Tab(
-                                    selected = selectedTab == 0,
-                                    onClick = { selectedTab = 0 },
-                                    text = { Text("Unggahan Saya") }
-                                )
-                                Tab(
-                                    selected = selectedTab == 1,
-                                    onClick = { selectedTab = 1 },
-                                    text = { Text("Tersimpan") }
-                                )
-                            }
+                            Text(
+                                text = "Unggahan Saya",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp, vertical = 8.dp)
+                            )
                         }
 
-                        // My Posts or Saved Posts
+                        // My Posts
                         if (storyUiState is StoryUiState.Success) {
                             val allStories = (storyUiState as StoryUiState.Success).stories
-                            val filteredStories = if (selectedTab == 0) {
-                                allStories.filter { it.authorId == storyViewModel.currentUserId }
-                            } else {
-                                allStories.filter { it.bookmarkedByUsers.contains(storyViewModel.currentUserId) }
-                            }
-                            
-                            if (filteredStories.isEmpty()) {
+                            val myStories = allStories.filter { it.authorId == storyViewModel.currentUserId }
+                            if (myStories.isEmpty()) {
                                 item {
                                     Text(
-                                        text = if (selectedTab == 0) "Belum ada unggahan." else "Belum ada unggahan tersimpan.",
+                                        text = "Belum ada unggahan.",
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         modifier = Modifier.padding(32.dp)
                                     )
                                 }
                             } else {
-                                items(filteredStories, key = { it.id }) { story ->
+                                items(myStories, key = { it.id }) { story ->
                                     StoryCard(
                                         story = story,
                                         currentUserId = storyViewModel.currentUserId,
                                         onLikeClick = { storyViewModel.toggleLike(story.id, story.likedByUsers) },
-                                        onCommentClick = { selectedStoryForComments = story },
-                                        onBookmarkClick = { storyViewModel.toggleBookmark(story.id) }
+                                        onCommentClick = { selectedStoryForComments = story }
                                     )
                                 }
                             }
@@ -291,3 +280,4 @@ fun UserProfileScreen(
         }
     }
 }
+INNER_EOF

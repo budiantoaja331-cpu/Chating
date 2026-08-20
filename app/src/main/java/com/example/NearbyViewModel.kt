@@ -17,7 +17,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 
-data class NearbyUser(
+@androidx.annotation.Keep data class NearbyUser(
     val id: String = "",
     val name: String = "",
     val avatarUrl: String = "",

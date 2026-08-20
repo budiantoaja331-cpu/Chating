@@ -4,7 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material.icons.filled.Call
@@ -65,19 +65,27 @@ sealed class Screen(
 fun RootScreen() {
     val authViewModel: AuthViewModel = viewModel()
     val authState by authViewModel.authState.collectAsState()
-
-    when (val state = authState) {
-        is AuthState.Success -> {
-            MainAppScreen(state.userId, state.userName)
+    val context = LocalContext.current
+    
+    Box(modifier = Modifier.fillMaxSize()) {
+        when (val state = authState) {
+            is AuthState.Success -> {
+                LaunchedEffect(state.userId) {
+                    android.widget.Toast.makeText(context, "Selamat datang, ${state.userName}!", android.widget.Toast.LENGTH_SHORT).show()
+                }
+                MainAppScreen(state.userId, state.userName, state.profileImageUrl)
+            }
+            else -> {
+                LoginScreen(authViewModel)
+            }
         }
-        else -> {
-            LoginScreen(authViewModel)
-        }
+        
+        FirebaseDiagnosticUI()
     }
 }
 
 @Composable
-fun MainAppScreen(userId: String, userName: String) {
+fun MainAppScreen(userId: String, userName: String, profileImageUrl: String? = null) {
     val navController = rememberNavController()
     val context = LocalContext.current
     val callManager = remember(userId) { ActiveCallManager(userId) }
@@ -101,7 +109,7 @@ fun MainAppScreen(userId: String, userName: String) {
         )
     }
     
-    val appViewModelFactory = remember { AppViewModelFactory(userId, userName) }
+    val appViewModelFactory = remember { AppViewModelFactory(profileImageUrl, userId, userName) }
     
     val items = listOf(
         Screen.Nearby,
@@ -183,7 +191,7 @@ fun MainAppScreen(userId: String, userName: String) {
                     onNavigateBack = { navController.navigateUp() }
                 )
             }
-            composable(Screen.Profile.route) { UserProfileScreen(viewModel(factory = appViewModelFactory)) }
+            composable(Screen.Profile.route) { UserProfileScreen(viewModel(factory = appViewModelFactory), viewModel(factory = appViewModelFactory)) }
             
             composable(
                 route = "chatRoom/{otherUserId}/{otherUserName}",

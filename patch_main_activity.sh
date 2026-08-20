@@ -1,1 +1,2 @@
-sed -i '/ChatRoomScreen(/a \                    onNavigateToCall = { targetUserId, isVideo ->\n                        val channelId = "call_" + minOf(userId, targetUserId) + "_" + maxOf(userId, targetUserId)\n                        navController.navigate("callScreen/$channelId/$isVideo")\n                    },' app/src/main/java/com/example/MainActivity.kt
+sed -i 's/MainAppScreen(state.userId, state.userName)/MainAppScreen(state.userId, state.userName, state.profileImageUrl)/' app/src/main/java/com/example/MainActivity.kt
+sed -i 's/fun MainAppScreen(userId: String, userName: String)/fun MainAppScreen(userId: String, userName: String, profileImageUrl: String? = null)/' app/src/main/java/com/example/MainActivity.kt

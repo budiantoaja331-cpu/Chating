@@ -9,6 +9,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ChatBubbleOutline
 import androidx.compose.material.icons.filled.Favorite
@@ -16,10 +18,13 @@ import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
+import androidx.compose.animation.core.*
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -30,7 +35,9 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 @Composable
 fun StoryScreen(viewModel: StoryViewModel = viewModel()) {
     val uiState by viewModel.uiState.collectAsState()
+    val isRefreshing by viewModel.isRefreshing.collectAsState()
     val currentUserId = viewModel.currentUserId
+    var selectedStoryForComments: Story? by remember { mutableStateOf(null) }
     var showAddDialog by remember { mutableStateOf(false) }
 
     Scaffold(
@@ -67,7 +74,9 @@ fun StoryScreen(viewModel: StoryViewModel = viewModel()) {
         },
         containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
     ) { innerPadding ->
-        Box(
+        PullToRefreshBox(
+            isRefreshing = isRefreshing,
+            onRefresh = { viewModel.refreshStories() },
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding),
@@ -102,7 +111,9 @@ fun StoryScreen(viewModel: StoryViewModel = viewModel()) {
                                 StoryCard(
                                     story = story,
                                     currentUserId = viewModel.currentUserId, // Should match ViewModel
-                                    onLikeClick = { viewModel.toggleLike(story.id, story.likedByUsers) }
+                                    onLikeClick = { viewModel.toggleLike(story.id, story.likedByUsers) },
+                                    onCommentClick = { selectedStoryForComments = story },
+                                    onBookmarkClick = { viewModel.toggleBookmark(story.id) }
                                 )
                             }
                         }
@@ -113,38 +124,122 @@ fun StoryScreen(viewModel: StoryViewModel = viewModel()) {
     }
 
     if (showAddDialog) {
+        val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
         var newStoryContent by remember { mutableStateOf("") }
-        AlertDialog(
+        ModalBottomSheet(
             onDismissRequest = { showAddDialog = false },
-            title = { Text("Tulis Story Baru") },
-            text = {
+            sheetState = sheetState,
+            containerColor = MaterialTheme.colorScheme.surface
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
+                    .padding(bottom = 32.dp)
+            ) {
+                Text(
+                    text = "Tulis Story Baru",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(bottom = 16.dp)
+                )
                 OutlinedTextField(
                     value = newStoryContent,
                     onValueChange = { newStoryContent = it },
                     placeholder = { Text("Apa yang sedang kamu pikirkan?") },
-                    modifier = Modifier.fillMaxWidth(),
-                    minLines = 3
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(150.dp)
                 )
-            },
-            confirmButton = {
-                Button(onClick = {
-                    viewModel.addStory(newStoryContent)
-                    showAddDialog = false
-                }) {
+                Spacer(modifier = Modifier.height(16.dp))
+                Button(
+                    onClick = {
+                        viewModel.addStory(newStoryContent)
+                        showAddDialog = false
+                    },
+                    modifier = Modifier.align(Alignment.End),
+                    enabled = newStoryContent.isNotBlank()
+                ) {
                     Text("Kirim")
                 }
-            },
-            dismissButton = {
-                TextButton(onClick = { showAddDialog = false }) {
-                    Text("Batal")
+            }
+        }
+    }
+    selectedStoryForComments?.let { selectedStory ->
+        val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        var newCommentContent by remember { mutableStateOf("") }
+        // Find the most up-to-date story object in case a comment was just added
+        val upToDateStory = (uiState as? StoryUiState.Success)?.stories?.find { it.id == selectedStory.id } ?: selectedStory
+        ModalBottomSheet(
+            onDismissRequest = { selectedStoryForComments = null },
+            sheetState = sheetState,
+            containerColor = MaterialTheme.colorScheme.surface
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
+                    .padding(bottom = 32.dp)
+            ) {
+                Text(
+                    text = "Komentar",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(bottom = 16.dp)
+                )
+                LazyColumn(modifier = Modifier.weight(1f, fill = false)) {
+                    items(upToDateStory.comments) { comment ->
+                        Column(modifier = Modifier.padding(vertical = 8.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = comment.authorName,
+                                    fontWeight = FontWeight.Bold,
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = comment.formattedTime,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = comment.content,
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        }
+                        HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp), thickness = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant)
+                    }
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    OutlinedTextField(
+                        value = newCommentContent,
+                        onValueChange = { newCommentContent = it },
+                        placeholder = { Text("Tambahkan komentar...") },
+                        modifier = Modifier.weight(1f),
+                        maxLines = 3
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Button(
+                        onClick = {
+                            viewModel.addComment(upToDateStory.id, newCommentContent)
+                            newCommentContent = ""
+                        },
+                        enabled = newCommentContent.isNotBlank()
+                    ) {
+                        Text("Kirim")
+                    }
                 }
             }
-        )
+        }
     }
 }
 
+
 @Composable
-fun StoryCard(story: Story, currentUserId: String, onLikeClick: () -> Unit) {
+fun StoryCard(story: Story, currentUserId: String, onLikeClick: () -> Unit, onCommentClick: () -> Unit, onBookmarkClick: () -> Unit = {}) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -201,7 +296,7 @@ fun StoryCard(story: Story, currentUserId: String, onLikeClick: () -> Unit) {
                     }
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
-                        text = DateUtils.getRelativeTimeSpanString(story.timestamp).toString(),
+                        text = story.formattedTime,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         style = MaterialTheme.typography.bodySmall
                     )
@@ -227,6 +322,14 @@ fun StoryCard(story: Story, currentUserId: String, onLikeClick: () -> Unit) {
                 val isLiked = story.likedByUsers.contains(currentUserId)
                 
                 // Like Button
+                val scale by animateFloatAsState(
+                    targetValue = if (isLiked) 1.2f else 1f,
+                    animationSpec = spring(
+                        dampingRatio = Spring.DampingRatioMediumBouncy,
+                        stiffness = Spring.StiffnessLow
+                    ),
+                    label = "like_animation"
+                )
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
@@ -238,7 +341,7 @@ fun StoryCard(story: Story, currentUserId: String, onLikeClick: () -> Unit) {
                         imageVector = if (isLiked) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
                         contentDescription = "Like",
                         tint = if (isLiked) Color.Red else MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(20.dp).scale(scale)
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
@@ -251,7 +354,11 @@ fun StoryCard(story: Story, currentUserId: String, onLikeClick: () -> Unit) {
                 // Comment Button
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.padding(4.dp)
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(16.dp))
+                        .clickable { onCommentClick() }
+                        .padding(4.dp)
+
                 ) {
                     Icon(
                         imageVector = Icons.Filled.ChatBubbleOutline,
@@ -276,6 +383,23 @@ fun StoryCard(story: Story, currentUserId: String, onLikeClick: () -> Unit) {
                         imageVector = Icons.Filled.Share,
                         contentDescription = "Share",
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+                
+                // Bookmark Button
+                val isBookmarked = story.bookmarkedByUsers.contains(currentUserId)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(16.dp))
+                        .clickable { onBookmarkClick() }
+                        .padding(4.dp)
+                ) {
+                    Icon(
+                        imageVector = if (isBookmarked) Icons.Filled.Bookmark else Icons.Filled.BookmarkBorder,
+                        contentDescription = "Bookmark",
+                        tint = if (isBookmarked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(20.dp)
                     )
                 }
