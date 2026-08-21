@@ -65,10 +65,10 @@ class CallViewModel : ViewModel() {
                 channelProfile = Constants.CHANNEL_PROFILE_COMMUNICATION
             }
             
-            // Bergabung ke Channel. 
-            // Catatan: Jika Sertifikat Agora dinyalakan secara ketat (Strict Token),
-            // parameter token (null) ini kelak harus diganti dengan Token Generator.
-            rtcEngine?.joinChannel(null, channelName, 0, options)
+            // Bergabung ke Channel menggunakan Token Lokal.
+            val tokenService = RtcTokenService()
+            val token = tokenService.generateToken(channelName, 0)
+            rtcEngine?.joinChannel(token, channelName, 0, options)
             
         } catch (e: Exception) {
             Log.e("CallViewModel", "Exception creating RTC engine", e)

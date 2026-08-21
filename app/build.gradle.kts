@@ -14,7 +14,7 @@ android {
   compileSdk = 35
 
   defaultConfig {
-    buildConfigField("String", "AGORA_APP_ID", "\"122f5efcb34a4653b36e4360473be629\"")
+    buildConfigField("String", "AGORA_APP_ID", "\"085ae7b69ba544a887d74c00b7e9f0d9\"")
     buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", "\"587577854775-082bt8hnr3n0f50ssqgrmgqirbg1olth.apps.googleusercontent.com\"")
     applicationId = "com.chatmicall.app"
     minSdk = 24
@@ -74,6 +74,7 @@ googleServices { missingGoogleServicesStrategy = MissingGoogleServicesStrategy.W
 // Some unused dependencies are commented out below instead of being removed.
 // This makes it easy to add them back in the future if needed.
 dependencies {
+  implementation("commons-codec:commons-codec:1.16.1")
   implementation("io.agora.rtc:full-sdk:4.4.0")
   implementation(platform(libs.androidx.compose.bom))
   implementation(platform(libs.firebase.bom))

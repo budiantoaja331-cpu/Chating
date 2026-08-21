@@ -8,8 +8,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.Chat
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.outlined.Chat
+
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -62,7 +63,7 @@ fun ChatListScreen(
                             modifier = Modifier.padding(top = 64.dp)
                         ) {
                             Icon(
-                                imageVector = Icons.Outlined.Chat,
+                                imageVector = Icons.AutoMirrored.Outlined.Chat,
                                 contentDescription = "Kosong",
                                 modifier = Modifier.size(64.dp),
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
@@ -84,7 +85,7 @@ fun ChatListScreen(
                                     otherUserName = otherUserName,
                                     onClick = { onNavigateToChat(otherUserId, otherUserName) }
                                 )
-                                Divider(color = MaterialTheme.colorScheme.surfaceVariant)
+                                HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
                             }
                         }
                     }

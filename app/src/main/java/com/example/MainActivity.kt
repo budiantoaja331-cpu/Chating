@@ -6,13 +6,15 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Chat
+import androidx.compose.material.icons.automirrored.filled.Chat
+import androidx.compose.material.icons.automirrored.outlined.Chat
+
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.outlined.Call
 import androidx.compose.material.icons.filled.DynamicFeed
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.outlined.Chat
+
 import androidx.compose.material.icons.outlined.DynamicFeed
 import androidx.compose.material.icons.outlined.LocationOn
 import androidx.compose.material.icons.outlined.Person
@@ -56,7 +58,7 @@ sealed class Screen(
 ) {
     object Nearby : Screen("nearby", "Teman", Icons.Filled.LocationOn, Icons.Outlined.LocationOn)
     object Story : Screen("story", "Story", Icons.Filled.DynamicFeed, Icons.Outlined.DynamicFeed)
-    object Chat : Screen("chat", "Obrolan", Icons.Filled.Chat, Icons.Outlined.Chat)
+    object Chat : Screen("chat", "Obrolan", Icons.AutoMirrored.Filled.Chat, Icons.AutoMirrored.Outlined.Chat)
     object CallHistory : Screen("call_history", "Panggilan", Icons.Filled.Call, Icons.Outlined.Call)
     object Profile : Screen("profile", "Profil", Icons.Filled.Person, Icons.Outlined.Person)
 }

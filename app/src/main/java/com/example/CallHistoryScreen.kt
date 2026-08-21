@@ -6,10 +6,13 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.CallMade
+import androidx.compose.material.icons.automirrored.filled.CallMissed
+import androidx.compose.material.icons.automirrored.filled.CallReceived
 import androidx.compose.material.icons.filled.Call
-import androidx.compose.material.icons.filled.CallMade
-import androidx.compose.material.icons.filled.CallMissed
-import androidx.compose.material.icons.filled.CallReceived
+
+
+
 import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -90,10 +93,10 @@ fun CallRecordItem(
     val isMissed = call.status == "missed" || call.status == "rejected"
 
     val icon = when {
-        isMissed && !isCaller -> Icons.Filled.CallMissed 
-        isMissed && isCaller -> Icons.Filled.CallMade 
-        isCaller -> Icons.Filled.CallMade
-        else -> Icons.Filled.CallReceived
+        isMissed && !isCaller -> Icons.AutoMirrored.Filled.CallMissed 
+        isMissed && isCaller -> Icons.AutoMirrored.Filled.CallMade 
+        isCaller -> Icons.AutoMirrored.Filled.CallMade
+        else -> Icons.AutoMirrored.Filled.CallReceived
     }
     
     val iconColor = if (isMissed && !isCaller) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
