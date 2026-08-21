@@ -28,7 +28,7 @@ import kotlin.math.roundToInt
 @Composable
 fun NearbyScreen(
     viewModel: NearbyViewModel = viewModel(),
-    onNavigateToChat: (String, String) -> Unit = { _, _ -> }
+    onNavigateToProfile: (String) -> Unit = { _ -> }
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
@@ -141,7 +141,7 @@ fun NearbyScreen(
                             verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
                             items(users) { user ->
-                                NearbyUserCard(user, onNavigateToChat)
+                                NearbyUserCard(user, onNavigateToProfile)
                             }
                         }
                     }
@@ -152,7 +152,7 @@ fun NearbyScreen(
 }
 
 @Composable
-fun NearbyUserCard(user: NearbyUser, onNavigateToChat: (String, String) -> Unit) {
+fun NearbyUserCard(user: NearbyUser, onNavigateToProfile: (String) -> Unit) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
@@ -196,8 +196,8 @@ fun NearbyUserCard(user: NearbyUser, onNavigateToChat: (String, String) -> Unit)
                     color = MaterialTheme.colorScheme.primary
                 )
             }
-            Button(onClick = { onNavigateToChat(user.id, user.name) }) {
-                Text("Sapa")
+            Button(onClick = { onNavigateToProfile(user.id) }) {
+                Text("Lihat Profil")
             }
         }
     }

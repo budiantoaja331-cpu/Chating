@@ -1,26 +1,26 @@
-import os
+import re
 
-def replace_in_file(filepath, replacements):
-    if not os.path.exists(filepath): return
-    with open(filepath, 'r') as f:
-        content = f.read()
-    for old, new in replacements.items():
-        content = content.replace(old, new)
-    with open(filepath, 'w') as f:
-        f.write(content)
+path1 = 'app/src/main/java/com/example/MainActivity.kt'
+with open(path1, 'r') as f:
+    c1 = f.read()
 
-replace_in_file('app/src/main/java/com/example/CallHistoryScreen.kt', {
-    'import androidx.compose.material.icons.filled.CallMade': '',
-    'import androidx.compose.material.icons.filled.CallMissed': '',
-    'import androidx.compose.material.icons.filled.CallReceived': ''
-})
+if 'import androidx.compose.material.icons.filled.Add' not in c1:
+    c1 = c1.replace('import androidx.compose.material.icons.filled.Person', 'import androidx.compose.material.icons.filled.Person\nimport androidx.compose.material.icons.filled.Add')
 
-replace_in_file('app/src/main/java/com/example/ChatListScreen.kt', {
-    'import androidx.compose.material.icons.outlined.Chat': ''
-})
+with open(path1, 'w') as f:
+    f.write(c1)
 
-replace_in_file('app/src/main/java/com/example/MainActivity.kt', {
-    'import androidx.compose.material.icons.filled.Chat': '',
-    'import androidx.compose.material.icons.outlined.Chat': ''
-})
+path2 = 'app/src/main/java/com/example/StoryScreen.kt'
+with open(path2, 'r') as f:
+    c2 = f.read()
 
+if 'import coil.compose.AsyncImage' not in c2:
+    c2 = c2.replace('import androidx.lifecycle.viewmodel.compose.viewModel', 'import androidx.lifecycle.viewmodel.compose.viewModel\nimport coil.compose.AsyncImage')
+
+if 'import androidx.compose.ui.layout.ContentScale' not in c2:
+    c2 = c2.replace('import androidx.compose.ui.Alignment', 'import androidx.compose.ui.Alignment\nimport androidx.compose.ui.layout.ContentScale')
+
+with open(path2, 'w') as f:
+    f.write(c2)
+
+print("Fixed imports")

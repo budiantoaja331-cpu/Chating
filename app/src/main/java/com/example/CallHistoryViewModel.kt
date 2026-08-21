@@ -28,7 +28,7 @@ class CallHistoryViewModel(val currentUserId: String) : ViewModel() {
     private fun fetchCallHistory() {
         callsCollection
             .whereArrayContains("participants", currentUserId)
-            .orderBy("timestamp", Query.Direction.DESCENDING)
+            // .orderBy removed to prevent Firestore composite index requirements
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
                     Log.e("CallHistoryVM", "Error fetching calls", error)
@@ -37,7 +37,7 @@ class CallHistoryViewModel(val currentUserId: String) : ViewModel() {
                 }
 
                 if (snapshot != null) {
-                    val calls = snapshot.documents.mapNotNull { it.toObject(CallRecord::class.java) }
+                    val calls = snapshot.documents.mapNotNull { it.toObject(CallRecord::class.java) }.sortedByDescending { it.timestamp }
                     _uiState.value = CallHistoryUiState.Success(calls)
                 }
             }

@@ -28,7 +28,7 @@ class ChatListViewModel(val currentUserId: String = "my_user_id") : ViewModel() 
     private fun listenForChats() {
         chatsCollection
             .whereArrayContains("participants", currentUserId)
-            .orderBy("lastMessageTime", Query.Direction.DESCENDING)
+            // .orderBy removed to prevent Firestore composite index requirements
             .addSnapshotListener { snapshot, e ->
                 if (e != null) {
                     Log.w("ChatListViewModel", "Listen failed.", e)
@@ -44,6 +44,7 @@ class ChatListViewModel(val currentUserId: String = "my_user_id") : ViewModel() 
                             channels.add(channel)
                         }
                     }
+                    channels.sortByDescending { it.lastMessageTime }
                     _uiState.value = ChatListUiState.Success(channels)
                 }
             }

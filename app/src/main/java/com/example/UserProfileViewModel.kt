@@ -15,7 +15,12 @@ import kotlinx.coroutines.tasks.await
     val id: String = "",
     val name: String = "",
     val bio: String = "",
-    val avatarUrl: String = ""
+    val avatarUrl: String = "",
+    val nickname: String = "",
+    val age: Int = 0,
+    val interests: String = "",
+    val isProfileComplete: Boolean = false,
+    val blockedUsers: List<String> = emptyList()
 )
 
 sealed class UserProfileUiState {
@@ -29,10 +34,9 @@ class UserProfileViewModel(
     private val userName: String = "New User",
     private val profileImageUrl: String? = null
 ) : ViewModel() {
-
     private val db = FirebaseFirestore.getInstance()
     private val profilesCollection = db.collection("users")
-
+    
     private val _uiState = MutableStateFlow<UserProfileUiState>(UserProfileUiState.Loading)
     val uiState: StateFlow<UserProfileUiState> = _uiState.asStateFlow()
 
@@ -54,7 +58,7 @@ class UserProfileViewModel(
                     }
                 } else {
                     // Profile doesn't exist yet, create a default one
-                    val newProfile = UserProfile(id = userId, name = userName, bio = "This is my bio.", avatarUrl = profileImageUrl ?: "")
+                    val newProfile = UserProfile(id = userId, name = userName, bio = "Ini adalah bio saya.", avatarUrl = profileImageUrl ?: "")
                     _uiState.value = UserProfileUiState.Success(newProfile)
                 }
             } catch (e: Exception) {
@@ -64,10 +68,17 @@ class UserProfileViewModel(
         }
     }
 
-    fun updateProfile(name: String, bio: String) {
+    fun updateProfile(name: String, bio: String, nickname: String = "", age: Int = 0, interests: String = "") {
         val currentState = _uiState.value
         if (currentState is UserProfileUiState.Success) {
-            val updatedProfile = currentState.profile.copy(name = name, bio = bio)
+            val updatedProfile = currentState.profile.copy(
+                name = name, 
+                bio = bio,
+                nickname = if (nickname.isNotEmpty()) nickname else currentState.profile.nickname,
+                age = if (age > 0) age else currentState.profile.age,
+                interests = if (interests.isNotEmpty()) interests else currentState.profile.interests,
+                isProfileComplete = true
+            )
             _uiState.value = UserProfileUiState.Success(updatedProfile) // Optimistic update
             
             viewModelScope.launch {
@@ -75,7 +86,6 @@ class UserProfileViewModel(
                     profilesCollection.document(userId).set(updatedProfile).await()
                 } catch (e: Exception) {
                     Log.e("UserProfileViewModel", "Error updating profile", e)
-                    // Revert to old state on failure if needed, or show error
                     _uiState.value = UserProfileUiState.Error("Failed to update profile: ${e.message}")
                 }
             }

@@ -31,7 +31,8 @@ fun ChatRoomScreen(
     otherUserId: String,
     otherUserName: String,
     onNavigateBack: () -> Unit,
-    onNavigateToCall: (String, Boolean) -> Unit
+    onNavigateToCall: (String, Boolean) -> Unit,
+    onNavigateToProfile: (String) -> Unit = {}
 ) {
 
     val factory = remember { ChatRoomViewModelFactory(otherUserId, otherUserName, currentUserId, currentUserName) }
@@ -45,7 +46,11 @@ fun ChatRoomScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(otherUserName, fontWeight = FontWeight.Bold) },
+                title = { 
+                    TextButton(onClick = { onNavigateToProfile(otherUserId) }) {
+                        Text(otherUserName, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                    }
+                },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Kembali")

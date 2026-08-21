@@ -19,7 +19,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun UserProfileScreen(
     viewModel: UserProfileViewModel = viewModel(),
@@ -27,12 +27,18 @@ fun UserProfileScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val storyUiState by storyViewModel.uiState.collectAsState()
+    val savedPostIds by storyViewModel.savedPostIds.collectAsState()
     var isEditing by remember { mutableStateOf(false) }
     var editName by remember { mutableStateOf("") }
     var editBio by remember { mutableStateOf("") }
+    var editNickname by remember { mutableStateOf("") }
+    var editAge by remember { mutableStateOf("") }
+    var editInterests by remember { mutableStateOf("") }
 
     var selectedStoryForComments: Story? by remember { mutableStateOf(null) }
     var selectedTab by remember { mutableStateOf(0) } // 0 = My Posts, 1 = Saved
+
+    val predefinedInterests = listOf("conten", "hiburan", "cari patner fantasi", "d'patner", "cari pasangan seumur hidup", "sewa pacar", "penyedia pacar sewa")
 
     Scaffold(
         topBar = {
@@ -43,13 +49,16 @@ fun UserProfileScreen(
                         IconButton(onClick = {
                             if (isEditing) {
                                 // Save changes
-                                viewModel.updateProfile(editName, editBio)
+                                viewModel.updateProfile(editName, editBio, editNickname, editAge.toIntOrNull() ?: 0, editInterests)
                                 isEditing = false
                             } else {
                                 // Enter edit mode
                                 val profile = (uiState as UserProfileUiState.Success).profile
                                 editName = profile.name
                                 editBio = profile.bio
+                                editNickname = profile.nickname
+                                editAge = if (profile.age > 0) profile.age.toString() else ""
+                                editInterests = profile.interests
                                 isEditing = true
                             }
                         }) {
@@ -140,10 +149,57 @@ fun UserProfileScreen(
                                         minLines = 3,
                                         maxLines = 5
                                     )
+                                    Spacer(modifier = Modifier.height(16.dp))
+                                    OutlinedTextField(
+                                        value = editNickname,
+                                        onValueChange = { editNickname = it },
+                                        label = { Text("Nama Panggilan") },
+                                        modifier = Modifier.fillMaxWidth(),
+                                        singleLine = true
+                                    )
+                                    Spacer(modifier = Modifier.height(16.dp))
+                                    OutlinedTextField(
+                                        value = editAge,
+                                        onValueChange = { editAge = it },
+                                        label = { Text("Umur") },
+                                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number),
+                                        modifier = Modifier.fillMaxWidth(),
+                                        singleLine = true
+                                    )
+                                    Spacer(modifier = Modifier.height(16.dp))
+                                    Text(
+                                        "Pilih Minat Anda:",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
+                                    )
+                                    
+                                    val selectedInterests = editInterests.split(",").map { it.trim() }.filter { it.isNotEmpty() }.toMutableSet()
+                                    
+                                    FlowRow(
+                                        modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        predefinedInterests.forEach { interest ->
+                                            val isSelected = selectedInterests.contains(interest)
+                                            FilterChip(
+                                                selected = isSelected,
+                                                onClick = {
+                                                    if (isSelected) {
+                                                        selectedInterests.remove(interest)
+                                                    } else {
+                                                        selectedInterests.add(interest)
+                                                    }
+                                                    editInterests = selectedInterests.joinToString(", ")
+                                                },
+                                                label = { Text(interest) }
+                                            )
+                                        }
+                                    }
                                     Spacer(modifier = Modifier.height(24.dp))
                                     Button(
                                         onClick = {
-                                            viewModel.updateProfile(editName, editBio)
+                                            viewModel.updateProfile(editName, editBio, editNickname, editAge.toIntOrNull() ?: 0, editInterests)
                                             isEditing = false
                                         },
                                         modifier = Modifier.fillMaxWidth()
@@ -164,6 +220,38 @@ fun UserProfileScreen(
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         modifier = Modifier.padding(horizontal = 16.dp)
                                     )
+                                    Spacer(modifier = Modifier.height(16.dp))
+                                    Card(
+                                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
+                                    ) {
+                                        Column(modifier = Modifier.padding(16.dp).fillMaxWidth()) {
+                                            Text("Data Diri", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                                            Spacer(modifier = Modifier.height(8.dp))
+                                            Text("Panggilan: ${profile.nickname.ifEmpty { "-" }}", style = MaterialTheme.typography.bodyMedium)
+                                            Text("Umur: ${if (profile.age > 0) "${profile.age} tahun" else "-"}", style = MaterialTheme.typography.bodyMedium)
+                                            
+                                            Spacer(modifier = Modifier.height(12.dp))
+                                            Text("Minat:", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                                            Spacer(modifier = Modifier.height(4.dp))
+                                            if (profile.interests.isNotEmpty()) {
+                                                FlowRow(
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                                                ) {
+                                                    profile.interests.split(",").map { it.trim() }.filter { it.isNotEmpty() }.forEach { interest ->
+                                                        AssistChip(
+                                                            onClick = { },
+                                                            label = { Text(interest) }
+                                                        )
+                                                    }
+                                                }
+                                            } else {
+                                                Text("-", style = MaterialTheme.typography.bodyMedium)
+                                            }
+                                        }
+                                    }
                                 }
                             }
                             HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
@@ -188,7 +276,7 @@ fun UserProfileScreen(
                             val filteredStories = if (selectedTab == 0) {
                                 allStories.filter { it.authorId == storyViewModel.currentUserId }
                             } else {
-                                allStories.filter { it.bookmarkedByUsers.contains(storyViewModel.currentUserId) }
+                                allStories.filter { savedPostIds.contains(it.id) }
                             }
                             
                             if (filteredStories.isEmpty()) {
@@ -204,9 +292,12 @@ fun UserProfileScreen(
                                     StoryCard(
                                         story = story,
                                         currentUserId = storyViewModel.currentUserId,
+                                        isBookmarked = savedPostIds.contains(story.id),
                                         onLikeClick = { storyViewModel.toggleLike(story.id, story.likedByUsers) },
                                         onCommentClick = { selectedStoryForComments = story },
-                                        onBookmarkClick = { storyViewModel.toggleBookmark(story.id) }
+                                        onBookmarkClick = { storyViewModel.toggleBookmark(story.id) },
+                                        onBlockClick = { storyViewModel.blockUser(story.authorId) },
+                                        onReportClick = { storyViewModel.reportStory(story.id) }
                                     )
                                 }
                             }

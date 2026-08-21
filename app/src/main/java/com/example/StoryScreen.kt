@@ -12,6 +12,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.ChatBubbleOutline
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
@@ -21,6 +22,7 @@ import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
@@ -30,22 +32,26 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import coil.compose.AsyncImage
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun StoryScreen(viewModel: StoryViewModel = viewModel()) {
+fun StoryScreen(
+    viewModel: StoryViewModel = viewModel(),
+    onNavigateToCreatePost: () -> Unit = {}
+) {
     val uiState by viewModel.uiState.collectAsState()
     val isRefreshing by viewModel.isRefreshing.collectAsState()
+    val savedPostIds by viewModel.savedPostIds.collectAsState()
     val currentUserId = viewModel.currentUserId
     var selectedStoryForComments: Story? by remember { mutableStateOf(null) }
-    var showAddDialog by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { 
                     Text(
-                        "Story", 
+                        "Beranda", 
                         fontWeight = FontWeight.Bold,
                         style = MaterialTheme.typography.titleLarge
                     ) 
@@ -65,11 +71,11 @@ fun StoryScreen(viewModel: StoryViewModel = viewModel()) {
         },
         floatingActionButton = {
             FloatingActionButton(
-                onClick = { showAddDialog = true },
+                onClick = onNavigateToCreatePost,
                 containerColor = MaterialTheme.colorScheme.primary,
                 contentColor = MaterialTheme.colorScheme.onPrimary
             ) {
-                Icon(Icons.Filled.Add, "New Story")
+                Icon(Icons.Filled.Add, "New Post")
             }
         },
         containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
@@ -96,24 +102,33 @@ fun StoryScreen(viewModel: StoryViewModel = viewModel()) {
                 }
                 is StoryUiState.Success -> {
                     val stories = (uiState as StoryUiState.Success).stories
-                    if (stories.isEmpty()) {
-                        Text(
-                            text = "Belum ada story. Jadilah yang pertama!",
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(top = 64.dp)
-                        )
-                    } else {
-                        LazyColumn(
-                            modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(bottom = 80.dp)
-                        ) {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(bottom = 80.dp)
+                    ) {
+                        if (stories.isEmpty()) {
+                            item {
+                                Box(
+                                    modifier = Modifier.fillParentMaxSize(),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = "Belum ada postingan. Jadilah yang pertama!",
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                        } else {
                             items(stories, key = { it.id }) { story ->
                                 StoryCard(
                                     story = story,
-                                    currentUserId = viewModel.currentUserId, // Should match ViewModel
+                                    currentUserId = viewModel.currentUserId,
+                                    isBookmarked = savedPostIds.contains(story.id),
                                     onLikeClick = { viewModel.toggleLike(story.id, story.likedByUsers) },
                                     onCommentClick = { selectedStoryForComments = story },
-                                    onBookmarkClick = { viewModel.toggleBookmark(story.id) }
+                                    onBookmarkClick = { viewModel.toggleBookmark(story.id) },
+                                    onBlockClick = { viewModel.blockUser(story.authorId) },
+                                    onReportClick = { viewModel.reportStory(story.id) }
                                 )
                             }
                         }
@@ -123,48 +138,7 @@ fun StoryScreen(viewModel: StoryViewModel = viewModel()) {
         }
     }
 
-    if (showAddDialog) {
-        val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-        var newStoryContent by remember { mutableStateOf("") }
-        ModalBottomSheet(
-            onDismissRequest = { showAddDialog = false },
-            sheetState = sheetState,
-            containerColor = MaterialTheme.colorScheme.surface
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp)
-                    .padding(bottom = 32.dp)
-            ) {
-                Text(
-                    text = "Tulis Story Baru",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(bottom = 16.dp)
-                )
-                OutlinedTextField(
-                    value = newStoryContent,
-                    onValueChange = { newStoryContent = it },
-                    placeholder = { Text("Apa yang sedang kamu pikirkan?") },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(150.dp)
-                )
-                Spacer(modifier = Modifier.height(16.dp))
-                Button(
-                    onClick = {
-                        viewModel.addStory(newStoryContent)
-                        showAddDialog = false
-                    },
-                    modifier = Modifier.align(Alignment.End),
-                    enabled = newStoryContent.isNotBlank()
-                ) {
-                    Text("Kirim")
-                }
-            }
-        }
-    }
+
     selectedStoryForComments?.let { selectedStory ->
         val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
         var newCommentContent by remember { mutableStateOf("") }
@@ -239,7 +213,16 @@ fun StoryScreen(viewModel: StoryViewModel = viewModel()) {
 
 
 @Composable
-fun StoryCard(story: Story, currentUserId: String, onLikeClick: () -> Unit, onCommentClick: () -> Unit, onBookmarkClick: () -> Unit = {}) {
+fun StoryCard(
+    story: Story,
+    currentUserId: String,
+    isBookmarked: Boolean = false,
+    onLikeClick: () -> Unit,
+    onCommentClick: () -> Unit,
+    onBookmarkClick: () -> Unit = {},
+    onBlockClick: () -> Unit = {},
+    onReportClick: () -> Unit = {}
+) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -258,7 +241,7 @@ fun StoryCard(story: Story, currentUserId: String, onLikeClick: () -> Unit, onCo
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                // Avatar Placeholder
+                // Avatar
                 Box(
                     modifier = Modifier
                         .size(48.dp)
@@ -266,12 +249,21 @@ fun StoryCard(story: Story, currentUserId: String, onLikeClick: () -> Unit, onCo
                         .background(MaterialTheme.colorScheme.primaryContainer),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        text = if (story.authorName.isNotEmpty()) story.authorName.first().toString() else "?",
-                        color = MaterialTheme.colorScheme.onPrimaryContainer,
-                        fontWeight = FontWeight.Bold,
-                        style = MaterialTheme.typography.titleMedium
-                    )
+                    if (story.authorAvatarUrl.isNotBlank()) {
+                        AsyncImage(
+                            model = story.authorAvatarUrl,
+                            contentDescription = "Profile Picture",
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop
+                        )
+                    } else {
+                        Text(
+                            text = if (story.authorName.isNotEmpty()) story.authorName.first().toString().uppercase() else "?",
+                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                            fontWeight = FontWeight.Bold,
+                            style = MaterialTheme.typography.titleMedium
+                        )
+                    }
                 }
                 
                 Spacer(modifier = Modifier.width(12.dp))
@@ -300,6 +292,34 @@ fun StoryCard(story: Story, currentUserId: String, onLikeClick: () -> Unit, onCo
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         style = MaterialTheme.typography.bodySmall
                     )
+                }
+
+                if (story.authorId != currentUserId) {
+                    var expanded by remember { mutableStateOf(false) }
+                    Box {
+                        IconButton(onClick = { expanded = true }) {
+                            Icon(Icons.Filled.MoreVert, contentDescription = "Pilihan lainnya")
+                        }
+                        DropdownMenu(
+                            expanded = expanded,
+                            onDismissRequest = { expanded = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Laporkan Postingan") },
+                                onClick = {
+                                    expanded = false
+                                    onReportClick()
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Blokir Pengguna") },
+                                onClick = { 
+                                    expanded = false
+                                    onBlockClick() 
+                                }
+                            )
+                        }
+                    }
                 }
             }
             
@@ -388,7 +408,7 @@ fun StoryCard(story: Story, currentUserId: String, onLikeClick: () -> Unit, onCo
                 }
                 
                 // Bookmark Button
-                val isBookmarked = story.bookmarkedByUsers.contains(currentUserId)
+                // val isBookmarked handled by param
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier

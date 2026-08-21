@@ -11,6 +11,7 @@ import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.GoogleAuthProvider
+import com.google.firebase.firestore.FirebaseFirestore
 import com.example.BuildConfig
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -21,12 +22,13 @@ import kotlinx.coroutines.tasks.await
 sealed class AuthState {
     object Idle : AuthState()
     object Loading : AuthState()
-    data class Success(val userId: String, val userName: String, val profileImageUrl: String? = null) : AuthState()
+    data class Success(val userId: String, val userName: String, val profileImageUrl: String? = null, val isProfileComplete: Boolean = false) : AuthState()
     data class Error(val message: String) : AuthState()
 }
 
 class AuthViewModel : ViewModel() {
     private val auth: FirebaseAuth? = try { FirebaseAuth.getInstance() } catch (e: Exception) { null }
+    private val db = FirebaseFirestore.getInstance()
     private val _authState = MutableStateFlow<AuthState>(AuthState.Idle)
     val authState: StateFlow<AuthState> = _authState.asStateFlow()
 
@@ -35,17 +37,34 @@ class AuthViewModel : ViewModel() {
         checkCurrentUser()
     }
 
-    private fun checkCurrentUser() {
-        try {
-            val user = auth?.currentUser
-            if (user != null) {
-                Log.d("AuthInit", "Found existing user: ${user.uid}")
-                _authState.value = AuthState.Success(user.uid, user.displayName ?: "User", user.photoUrl?.toString())
+    private suspend fun fetchProfileCompletionStatus(uid: String): Boolean {
+        return try {
+            val doc = db.collection("users").document(uid).get().await()
+            if (doc.exists()) {
+                doc.getBoolean("isProfileComplete") ?: false
             } else {
-                Log.d("AuthInit", "No existing user found. Waiting for login.")
+                false
             }
         } catch (e: Exception) {
-            Log.e("AuthInit", "Exception during checkCurrentUser: ${e.message}", e)
+            Log.e("AuthInit", "Error fetching profile completion status", e)
+            false
+        }
+    }
+
+    private fun checkCurrentUser() {
+        viewModelScope.launch {
+            try {
+                val user = auth?.currentUser
+                if (user != null) {
+                    Log.d("AuthInit", "Found existing user: ${user.uid}")
+                    val isComplete = fetchProfileCompletionStatus(user.uid)
+                    _authState.value = AuthState.Success(user.uid, user.displayName ?: "User", user.photoUrl?.toString(), isComplete)
+                } else {
+                    Log.d("AuthInit", "No existing user found. Waiting for login.")
+                }
+            } catch (e: Exception) {
+                Log.e("AuthInit", "Exception during checkCurrentUser: ${e.message}", e)
+            }
         }
     }
 
@@ -54,41 +73,31 @@ class AuthViewModel : ViewModel() {
             Log.d("AuthInit", "Starting Google Sign-In process...")
             _authState.value = AuthState.Loading
             try {
-                Log.d("AuthInit", "Creating CredentialManager...")
                 val credentialManager = CredentialManager.create(context)
                 
-                Log.d("AuthInit", "Building GetGoogleIdOption using Client ID: ${BuildConfig.GOOGLE_WEB_CLIENT_ID}")
                 val googleIdOption = GetGoogleIdOption.Builder()
                     .setFilterByAuthorizedAccounts(false)
                     .setServerClientId(BuildConfig.GOOGLE_WEB_CLIENT_ID)
                     .setAutoSelectEnabled(false)
                     .build()
                 
-                Log.d("AuthInit", "Building GetCredentialRequest...")
                 val request = GetCredentialRequest.Builder()
                     .addCredentialOption(googleIdOption)
                     .build()
                 
-                Log.d("AuthInit", "Invoking credentialManager.getCredential()...")
                 val result = credentialManager.getCredential(context, request)
                 val credential = result.credential
                 
-                Log.d("AuthInit", "Received credential result type: ${credential::class.java.simpleName}")
-                
                 if (credential is GoogleIdTokenCredential) {
-                    Log.d("AuthInit", "Credential is GoogleIdTokenCredential. Retrieving ID token...")
                     val idToken = credential.idToken
-                    
-                    Log.d("AuthInit", "Retrieving Firebase credential via GoogleAuthProvider...")
                     val firebaseCredential = GoogleAuthProvider.getCredential(idToken, null)
-                    
-                    Log.d("AuthInit", "Signing in to FirebaseAuth with credential...")
                     val authResult = auth?.signInWithCredential(firebaseCredential)?.await()
                     val user = authResult?.user
                     
                     if (user != null) {
                         Log.d("AuthInit", "Firebase sign-in successful. UID: ${user.uid}")
-                        _authState.value = AuthState.Success(user.uid, user.displayName ?: "User", user.photoUrl?.toString())
+                        val isComplete = fetchProfileCompletionStatus(user.uid)
+                        _authState.value = AuthState.Success(user.uid, user.displayName ?: "User", user.photoUrl?.toString(), isComplete)
                     } else {
                         Log.e("AuthInit", "Firebase sign-in failed: Data pengguna kosong.")
                         _authState.value = AuthState.Error("Login gagal: Data pengguna kosong")
@@ -104,6 +113,13 @@ class AuthViewModel : ViewModel() {
                 Log.e("AuthInit", "Unexpected Exception in signInWithGoogle: ${e.message}", e)
                 _authState.value = AuthState.Error("Kesalahan tidak terduga: ${e.message}")
             }
+        }
+    }
+    
+    fun markProfileComplete() {
+        val current = _authState.value
+        if (current is AuthState.Success) {
+            _authState.value = current.copy(isProfileComplete = true)
         }
     }
     

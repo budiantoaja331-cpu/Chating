@@ -5,6 +5,7 @@ import androidx.annotation.Keep
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.Query
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -20,6 +21,7 @@ data class Comment(
     val authorId: String = "",
     val authorName: String = "",
     val authorHandle: String = "",
+    val authorAvatarUrl: String = "",
     val timestamp: Long = System.currentTimeMillis(),
     val content: String = ""
 ) {
@@ -44,6 +46,7 @@ data class Story(
     val authorId: String = "",
     val authorName: String = "",
     val authorHandle: String = "",
+    val authorAvatarUrl: String = "",
     val timestamp: Long = 0L,
     val content: String = "",
     val hasImage: Boolean = false,
@@ -85,32 +88,152 @@ class StoryViewModel(val currentUserId: String = "my_user_id", private val curre
 
     private val _isRefreshing = MutableStateFlow(false)
     val isRefreshing: StateFlow<Boolean> = _isRefreshing.asStateFlow()
+    
+    private val _savedPostIds = MutableStateFlow<Set<String>>(emptySet())
+    val savedPostIds: StateFlow<Set<String>> = _savedPostIds.asStateFlow()
+
+    private var currentBlockedUsers: List<String> = emptyList()
+    private var rawStories: List<Story> = emptyList()
+    private var userProfileListener: com.google.firebase.firestore.ListenerRegistration? = null
 
     init {
+        listenToBlockedUsers()
+        listenToSavedPosts()
         loadStories()
     }
+    
+    private fun listenToSavedPosts() {
+        db.collection("users").document(currentUserId).collection("saved_posts")
+            .addSnapshotListener { snapshot, e ->
+                if (e != null || snapshot == null) return@addSnapshotListener
+                val ids = snapshot.documents.map { it.id }.toSet()
+                _savedPostIds.value = ids
+            }
+    }
+    
+    private fun listenToBlockedUsers() {
+        userProfileListener?.remove()
+        userProfileListener = db.collection("users").document(currentUserId)
+            .addSnapshotListener { snapshot, e ->
+                if (e != null) {
+                    Log.e("StoryViewModel", "Listen failed for user profile.", e)
+                    return@addSnapshotListener
+                }
+                if (snapshot != null && snapshot.exists()) {
+                    val profile = snapshot.toObject(UserProfile::class.java)
+                    currentBlockedUsers = profile?.blockedUsers ?: emptyList()
+                    updateUiState()
+                }
+            }
+    }
+    
+    private fun updateUiState() {
+        if (rawStories.isNotEmpty()) {
+            val filteredStories = rawStories.filter { it.authorId !in currentBlockedUsers }
+            _uiState.value = StoryUiState.Success(filteredStories)
+        } else {
+            if (_uiState.value is StoryUiState.Success) {
+                _uiState.value = StoryUiState.Success(emptyList())
+            }
+        }
+    }
+    
+    fun blockUser(targetUserId: String) {
+        viewModelScope.launch {
+            try {
+                db.collection("users").document(currentUserId).update(
+                    "blockedUsers", FieldValue.arrayUnion(targetUserId)
+                ).await()
+            } catch (e: Exception) {
+                Log.e("StoryViewModel", "Error blocking user", e)
+            }
+        }
+    }
+    
+    fun reportStory(storyId: String) {
+        viewModelScope.launch {
+            try {
+                val reportData = hashMapOf(
+                    "storyId" to storyId,
+                    "reporterId" to currentUserId,
+                    "timestamp" to System.currentTimeMillis()
+                )
+                db.collection("reports").add(reportData).await()
+            } catch (e: Exception) {
+                Log.e("StoryViewModel", "Error reporting story", e)
+            }
+        }
+    }
 
-    private fun loadStories() {
+    fun loadStories() {
         _uiState.value = StoryUiState.Loading
         fetchStoriesFromFirestore()
     }
 
-    private fun fetchStoriesFromFirestore() {
-        viewModelScope.launch {
-            try {
-                val snapshot = storiesCollection.orderBy("timestamp", Query.Direction.DESCENDING).get().await()
-                val stories = snapshot.toObjects(Story::class.java)
-                
-                if (stories.isEmpty()) {
-                    seedDummyDataToFirestore()
-                } else {
-                    _uiState.value = StoryUiState.Success(stories)
+    private var listenerRegistration: com.google.firebase.firestore.ListenerRegistration? = null
+
+    private val _currentComments = MutableStateFlow<List<Comment>>(emptyList())
+    val currentComments: StateFlow<List<Comment>> = _currentComments.asStateFlow()
+    
+    private var commentsListenerRegistration: com.google.firebase.firestore.ListenerRegistration? = null
+
+    fun loadCommentsForStory(storyId: String) {
+        commentsListenerRegistration?.remove()
+        commentsListenerRegistration = storiesCollection.document(storyId).collection("comments")
+            .orderBy("timestamp", Query.Direction.ASCENDING)
+            .addSnapshotListener { snapshot, e ->
+                if (e != null) {
+                    Log.e("StoryViewModel", "Comments listen failed.", e)
+                    return@addSnapshotListener
                 }
-            } catch (e: Exception) {
-                Log.e("StoryViewModel", "Error fetching stories", e)
-                _uiState.value = StoryUiState.Error(e.message ?: "Failed to fetch stories")
+                if (snapshot != null) {
+                    val commentsList = snapshot.toObjects(Comment::class.java)
+                    _currentComments.value = commentsList
+                }
             }
-        }
+    }
+    
+    fun clearCommentsListener() {
+        commentsListenerRegistration?.remove()
+        _currentComments.value = emptyList()
+    }
+
+
+    private fun fetchStoriesFromFirestore() {
+        _uiState.value = StoryUiState.Loading
+        listenerRegistration?.remove()
+        commentsListenerRegistration?.remove()
+        
+        listenerRegistration = storiesCollection
+            .orderBy("timestamp", Query.Direction.DESCENDING)
+            .addSnapshotListener { snapshot, e ->
+                if (e != null) {
+                    Log.e("StoryViewModel", "Listen failed.", e)
+                    _uiState.value = StoryUiState.Error(e.message ?: "Failed to listen for stories")
+                    return@addSnapshotListener
+                }
+                
+                if (snapshot != null) {
+                    rawStories = snapshot.toObjects(Story::class.java)
+                    if (rawStories.isEmpty()) {
+                        viewModelScope.launch {
+                            seedDummyDataToFirestore()
+                        }
+                    } else {
+                        updateUiState()
+                    }
+                } else {
+                    rawStories = emptyList()
+                    updateUiState()
+                }
+            }
+    }
+    
+    override fun onCleared() {
+        super.onCleared()
+        listenerRegistration?.remove()
+        commentsListenerRegistration?.remove()
+        userProfileListener?.remove()
     }
     
     private suspend fun seedDummyDataToFirestore() {
@@ -168,63 +291,59 @@ class StoryViewModel(val currentUserId: String = "my_user_id", private val curre
         }
     }
 
-    fun addStory(content: String) {
+    fun addStory(content: String, onComplete: () -> Unit = {}) {
         if (content.isBlank()) return
-        
-        val newStory = Story(
-            id = UUID.randomUUID().toString(),
-            authorId = currentUserId,
-            authorName = currentUserName,
-            authorHandle = "@user",
-            timestamp = System.currentTimeMillis(),
-            content = content,
-            likesCount = 0,
-            commentsCount = 0
-        )
-        
-        // Optimistic update
-        val currentState = _uiState.value
-        if (currentState is StoryUiState.Success) {
-            val updatedStories = listOf(newStory) + currentState.stories
-            _uiState.value = StoryUiState.Success(updatedStories)
-        }
         
         viewModelScope.launch {
             try {
+                // Fetch profile first
+                val profileDoc = db.collection("users").document(currentUserId).get().await()
+                var authorName = currentUserName
+                var authorHandle = "@user"
+                var authorAvatarUrl = ""
+                
+                if (profileDoc.exists()) {
+                    val profile = profileDoc.toObject(UserProfile::class.java)
+                    if (profile != null) {
+                        authorName = profile.name.ifEmpty { currentUserName }
+                        authorHandle = if (profile.nickname.isNotEmpty()) "@${profile.nickname.replace(" ", "_").lowercase()}" else "@user"
+                        authorAvatarUrl = profile.avatarUrl
+                    }
+                }
+                
+                val newStory = Story(
+                    id = UUID.randomUUID().toString(),
+                    authorId = currentUserId,
+                    authorName = authorName,
+                    authorHandle = authorHandle,
+                    authorAvatarUrl = authorAvatarUrl,
+                    timestamp = System.currentTimeMillis(),
+                    content = content,
+                    likesCount = 0,
+                    commentsCount = 0
+                )
+                
                 storiesCollection.document(newStory.id).set(newStory).await()
+                refreshStories()
+                onComplete()
             } catch (e: Exception) {
                 Log.e("StoryViewModel", "Error adding story", e)
-                // In a real app, handle failure (e.g., revert optimistic update and show toast)
             }
         }
     }
 
     fun toggleBookmark(storyId: String) {
-        val currentState = _uiState.value
-        if (currentState is StoryUiState.Success) {
-            val stories = currentState.stories.toMutableList()
-            val index = stories.indexOfFirst { it.id == storyId }
-            if (index != -1) {
-                val story = stories[index]
-                val newBookmarks = story.bookmarkedByUsers.toMutableList()
-                if (newBookmarks.contains(currentUserId)) {
-                    newBookmarks.remove(currentUserId)
+        val isSaved = _savedPostIds.value.contains(storyId)
+        val docRef = db.collection("users").document(currentUserId).collection("saved_posts").document(storyId)
+        viewModelScope.launch {
+            try {
+                if (isSaved) {
+                    docRef.delete().await()
                 } else {
-                    newBookmarks.add(currentUserId)
+                    docRef.set(mapOf("timestamp" to System.currentTimeMillis())).await()
                 }
-                
-                val updatedStory = story.copy(bookmarkedByUsers = newBookmarks)
-                stories[index] = updatedStory
-                _uiState.value = StoryUiState.Success(stories.toList())
-                
-                // Update Firestore
-                viewModelScope.launch {
-                    try {
-                        storiesCollection.document(storyId).set(updatedStory).await()
-                    } catch (e: Exception) {
-                        Log.e("StoryViewModel", "Error toggling bookmark", e)
-                    }
-                }
+            } catch (e: Exception) {
+                Log.e("StoryViewModel", "Error toggling bookmark", e)
             }
         }
     }
@@ -253,7 +372,11 @@ class StoryViewModel(val currentUserId: String = "my_user_id", private val curre
                 // Update Firestore
                 viewModelScope.launch {
                     try {
-                        storiesCollection.document(storyId).set(updatedStory).await()
+                        val isLiking = newLikes.contains(currentUserId)
+                        storiesCollection.document(storyId).update(
+                            "likedByUsers", if (isLiking) FieldValue.arrayUnion(currentUserId) else FieldValue.arrayRemove(currentUserId),
+                            "likesCount", if (isLiking) FieldValue.increment(1) else FieldValue.increment(-1)
+                        ).await()
                     } catch (e: Exception) {
                         Log.e("StoryViewModel", "Error toggling like", e)
                     }
@@ -300,12 +423,10 @@ class StoryViewModel(val currentUserId: String = "my_user_id", private val curre
             _isRefreshing.value = true
             try {
                 val snapshot = storiesCollection.orderBy("timestamp", Query.Direction.DESCENDING).get().await()
-                val stories = snapshot.toObjects(Story::class.java)
-                _uiState.value = StoryUiState.Success(stories)
+                rawStories = snapshot.toObjects(Story::class.java)
+                updateUiState()
             } catch (e: Exception) {
                 Log.e("StoryViewModel", "Error refreshing stories", e)
-                // Avoid overriding success state with error on refresh if there's old data,
-                // but for simplicity we'll just show the error.
             } finally {
                 _isRefreshing.value = false
             }

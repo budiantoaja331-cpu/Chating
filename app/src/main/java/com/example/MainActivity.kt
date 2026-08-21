@@ -1,6 +1,7 @@
 package com.example
 
 import android.os.Bundle
+import android.net.Uri
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -14,6 +15,7 @@ import androidx.compose.material.icons.outlined.Call
 import androidx.compose.material.icons.filled.DynamicFeed
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Add
 
 import androidx.compose.material.icons.outlined.DynamicFeed
 import androidx.compose.material.icons.outlined.LocationOn
@@ -38,13 +40,58 @@ import androidx.navigation.navArgument
 
 import com.example.ui.theme.MyApplicationTheme
 
+import android.Manifest
+import android.os.Build
+import android.content.pm.PackageManager
+import androidx.core.content.ContextCompat
+import androidx.activity.result.contract.ActivityResultContracts
+import com.google.firebase.messaging.FirebaseMessaging
+import android.util.Log
+
 class MainActivity : ComponentActivity() {
+    
+    private val requestPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted: Boolean ->
+        if (isGranted) {
+            Log.d("MainActivity", "Notification permission granted")
+        } else {
+            Log.d("MainActivity", "Notification permission denied")
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        
+        askNotificationPermission()
+        
+        // Fetch FCM token on startup
+        FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
+            if (!task.isSuccessful) {
+                Log.w("MainActivity", "Fetching FCM registration token failed", task.exception)
+                return@addOnCompleteListener
+            }
+            val token = task.result
+            Log.d("MainActivity", "FCM Token: $token")
+            // Can update this to Firestore under the current user's document
+        }
+        
         setContent {
             MyApplicationTheme {
                 RootScreen()
+            }
+        }
+    }
+    
+    private fun askNotificationPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) ==
+                PackageManager.PERMISSION_GRANTED
+            ) {
+                // Permission is already granted
+            } else {
+                requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
             }
         }
     }
@@ -57,7 +104,8 @@ sealed class Screen(
     val inactiveIcon: ImageVector
 ) {
     object Nearby : Screen("nearby", "Teman", Icons.Filled.LocationOn, Icons.Outlined.LocationOn)
-    object Story : Screen("story", "Story", Icons.Filled.DynamicFeed, Icons.Outlined.DynamicFeed)
+    object Story : Screen("feed", "Feed", Icons.Filled.DynamicFeed, Icons.Outlined.DynamicFeed)
+    object CreatePost : Screen("create_post", "Buat Postingan", Icons.Filled.Add, Icons.Filled.Add)
     object Chat : Screen("chat", "Obrolan", Icons.AutoMirrored.Filled.Chat, Icons.AutoMirrored.Outlined.Chat)
     object CallHistory : Screen("call_history", "Panggilan", Icons.Filled.Call, Icons.Outlined.Call)
     object Profile : Screen("profile", "Profil", Icons.Filled.Person, Icons.Outlined.Person)
@@ -72,10 +120,20 @@ fun RootScreen() {
     Box(modifier = Modifier.fillMaxSize()) {
         when (val state = authState) {
             is AuthState.Success -> {
-                LaunchedEffect(state.userId) {
-                    android.widget.Toast.makeText(context, "Selamat datang, ${state.userName}!", android.widget.Toast.LENGTH_SHORT).show()
+                if (state.isProfileComplete) {
+                    LaunchedEffect(state.userId) {
+                        android.widget.Toast.makeText(context, "Selamat datang, ${state.userName}!", android.widget.Toast.LENGTH_SHORT).show()
+                    }
+                    MainAppScreen(state.userId, state.userName, state.profileImageUrl)
+                } else {
+                    val profileViewModel = remember(state.userId) { UserProfileViewModel(state.userId, state.userName, state.profileImageUrl) }
+                    ProfileSetupScreen(
+                        viewModel = profileViewModel,
+                        onProfileComplete = {
+                            authViewModel.markProfileComplete()
+                        }
+                    )
                 }
-                MainAppScreen(state.userId, state.userName, state.profileImageUrl)
             }
             else -> {
                 LoginScreen(authViewModel)
@@ -161,11 +219,23 @@ fun MainAppScreen(userId: String, userName: String, profileImageUrl: String? = n
             modifier = Modifier.padding(innerPadding)
         ) {
             composable(Screen.Nearby.route) { 
-                NearbyScreen(viewModel = viewModel(factory = appViewModelFactory), onNavigateToChat = { otherUserId, otherUserName ->
-                    navController.navigate("chatRoom/$otherUserId/$otherUserName")
+                NearbyScreen(viewModel = viewModel(factory = appViewModelFactory), onNavigateToProfile = { otherUserId ->
+                    navController.navigate("friendProfile/$otherUserId")
                 }) 
             }
-            composable(Screen.Story.route) { StoryScreen(viewModel = viewModel(factory = appViewModelFactory)) }
+            composable(Screen.Story.route) { 
+                StoryScreen(
+                    viewModel = viewModel(factory = appViewModelFactory),
+                    onNavigateToCreatePost = { navController.navigate(Screen.CreatePost.route) }
+                ) 
+            }
+            composable(Screen.CreatePost.route) {
+                CreatePostScreen(
+                    viewModel = viewModel(factory = appViewModelFactory),
+                    userProfileViewModel = viewModel(factory = appViewModelFactory),
+                    onNavigateBack = { navController.navigateUp() }
+                )
+            }
             composable(Screen.CallHistory.route) { 
                 CallHistoryScreen(viewModel = viewModel(factory = appViewModelFactory), onNavigateToCall = { otherId, otherName, isVideo -> 
                     val channelId = "call_" + minOf(userId, otherId) + "_" + maxOf(userId, otherId)
@@ -175,7 +245,7 @@ fun MainAppScreen(userId: String, userName: String, profileImageUrl: String? = n
             }
             composable(Screen.Chat.route) { 
                 ChatListScreen(viewModel = viewModel(factory = appViewModelFactory), onNavigateToChat = { otherUserId, otherUserName ->
-                    navController.navigate("chatRoom/$otherUserId/$otherUserName")
+                    navController.navigate("chatRoom/$otherUserId/${Uri.encode(otherUserName)}")
                 })
             }
             composable(
@@ -196,6 +266,20 @@ fun MainAppScreen(userId: String, userName: String, profileImageUrl: String? = n
             composable(Screen.Profile.route) { UserProfileScreen(viewModel(factory = appViewModelFactory), viewModel(factory = appViewModelFactory)) }
             
             composable(
+                route = "friendProfile/{friendId}",
+                arguments = listOf(navArgument("friendId") { type = NavType.StringType })
+            ) { backStackEntry ->
+                val friendId = backStackEntry.arguments?.getString("friendId") ?: ""
+                FriendProfileScreen(
+                    friendId = friendId,
+                    onNavigateBack = { navController.navigateUp() },
+                    onNavigateToChat = { targetUserId, targetUserName ->
+                        navController.navigate("chatRoom/$targetUserId/${Uri.encode(targetUserName)}")
+                    }
+                )
+            }
+            
+            composable(
                 route = "chatRoom/{otherUserId}/{otherUserName}",
                 arguments = listOf(
                     navArgument("otherUserId") { type = NavType.StringType },
@@ -205,6 +289,9 @@ fun MainAppScreen(userId: String, userName: String, profileImageUrl: String? = n
                 val otherUserId = backStackEntry.arguments?.getString("otherUserId") ?: ""
                 val otherUserName = backStackEntry.arguments?.getString("otherUserName") ?: ""
                 ChatRoomScreen(
+                    onNavigateToProfile = { targetUserId ->
+                        navController.navigate("friendProfile/$targetUserId")
+                    },
                     onNavigateToCall = { targetUserId, isVideo ->
                         val channelId = "call_" + minOf(userId, targetUserId) + "_" + maxOf(userId, targetUserId)
                         callManager.initiateCall(userName, targetUserId, otherUserName, isVideo, channelId)

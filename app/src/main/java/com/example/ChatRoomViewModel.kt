@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
+import com.google.firebase.firestore.SetOptions
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -103,12 +104,12 @@ class ChatRoomViewModel(
                 // Save message
                 messageRef.set(message).await()
                 
-                // Update channel last message
-                chatsCollection.document(channelId).update(
+                // Update channel last message using Set with merge to avoid not-found errors
+                chatsCollection.document(channelId).set(
                     mapOf(
                         "lastMessage" to message.text,
                         "lastMessageTime" to message.timestamp
-                    )
+                    ), SetOptions.merge()
                 ).await()
             } catch (e: Exception) {
                 Log.e("ChatRoomViewModel", "Error sending message", e)
