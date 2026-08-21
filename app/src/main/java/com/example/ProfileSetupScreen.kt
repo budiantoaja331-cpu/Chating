@@ -33,7 +33,7 @@ fun ProfileSetupScreen(
         }
     }
 
-    val predefinedInterests = listOf("conten", "hiburan", "cari patner fantasi", "d'patner", "cari pasangan seumur hidup", "sewa pacar", "penyedia pacar sewa")
+    val predefinedInterests = listOf("conten", "hiburan", "mencari partner", "cari pasangan seumur hidup", "sewa pacar", "penyedia pacar sewa")
 
     Scaffold(
         topBar = {

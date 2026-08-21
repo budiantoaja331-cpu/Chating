@@ -8,6 +8,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -18,6 +19,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
+import androidx.compose.material.icons.filled.MoreVert
+import com.example.UserSessionManager
+import androidx.compose.ui.platform.LocalContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -29,6 +33,9 @@ fun FriendProfileScreen(
     val factory = remember(friendId) { FriendProfileViewModelFactory(friendId) }
     val viewModel: FriendProfileViewModel = viewModel(factory = factory)
     val uiState by viewModel.uiState.collectAsState()
+    val isFollowing by viewModel.isFollowing.collectAsState()
+    var showMenu by remember { mutableStateOf(false) }
+    val context = LocalContext.current
 
     Scaffold(
         topBar = {
@@ -37,6 +44,25 @@ fun FriendProfileScreen(
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Kembali")
+                    }
+                },
+                actions = {
+                    IconButton(onClick = { showMenu = true }) {
+                        Icon(Icons.Filled.MoreVert, contentDescription = "Opsi")
+                    }
+                    DropdownMenu(
+                        expanded = showMenu,
+                        onDismissRequest = { showMenu = false }
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("Blokir Pengguna") },
+                            onClick = { 
+                                showMenu = false
+                                UserSessionManager.blockUser(friendId)
+                                android.widget.Toast.makeText(context, "Pengguna diblokir.", android.widget.Toast.LENGTH_SHORT).show()
+                                onNavigateBack()
+                            }
+                        )
                     }
                 }
             )
@@ -130,12 +156,44 @@ fun FriendProfileScreen(
                                 Spacer(modifier = Modifier.height(24.dp))
                                 
                                 Button(
+                                    onClick = { viewModel.toggleFollow() },
+                                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = if (isFollowing) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.primary
+                                    )
+                                ) {
+                                    Icon(
+                                        imageVector = if (isFollowing) Icons.Filled.Person else Icons.Filled.Add, 
+                                        contentDescription = "Follow", 
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(if (isFollowing) "Mengikuti" else "Ikuti")
+                                }
+                                
+                                Spacer(modifier = Modifier.height(8.dp))
+                                
+                                OutlinedButton(
                                     onClick = { onNavigateToChat(profile.id, profile.name) },
                                     modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
                                 ) {
                                     Icon(Icons.Filled.Chat, contentDescription = "Kirim Pesan", modifier = Modifier.size(18.dp))
                                     Spacer(modifier = Modifier.width(8.dp))
                                     Text("Kirim Pesan")
+                                }
+                                
+                                Spacer(modifier = Modifier.height(16.dp))
+                                
+                                OutlinedButton(
+                                    onClick = { 
+                                        UserSessionManager.blockUser(friendId)
+                                        android.widget.Toast.makeText(context, "Pengguna diblokir.", android.widget.Toast.LENGTH_SHORT).show()
+                                        onNavigateBack()
+                                    },
+                                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                                    colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                                ) {
+                                    Text("Blokir Pengguna", fontWeight = FontWeight.Bold)
                                 }
                             }
                         }

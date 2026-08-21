@@ -89,6 +89,62 @@ class StoryViewModel(val currentUserId: String = "my_user_id", private val curre
     private val _isRefreshing = MutableStateFlow(false)
     val isRefreshing: StateFlow<Boolean> = _isRefreshing.asStateFlow()
     
+    private val _feedFilter = MutableStateFlow("All")
+    val feedFilter: StateFlow<String> = _feedFilter.asStateFlow()
+    
+    private var currentUserFollowing: List<String> = emptyList()
+
+    private val _searchQuery = MutableStateFlow("")
+    val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
+
+    private val _isSearching = MutableStateFlow(false)
+    val isSearching: StateFlow<Boolean> = _isSearching.asStateFlow()
+
+    private val _searchStoriesResult = MutableStateFlow<List<Story>>(emptyList())
+    val searchStoriesResult: StateFlow<List<Story>> = _searchStoriesResult.asStateFlow()
+
+    private val _searchUsersResult = MutableStateFlow<List<UserProfile>>(emptyList())
+    val searchUsersResult: StateFlow<List<UserProfile>> = _searchUsersResult.asStateFlow()
+    
+    private var searchJob: kotlinx.coroutines.Job? = null
+
+    fun updateSearchQuery(query: String) {
+        _searchQuery.value = query
+        if (query.isBlank()) {
+            _searchStoriesResult.value = emptyList()
+            _searchUsersResult.value = emptyList()
+            return
+        }
+        performSearch(query)
+    }
+
+    private fun performSearch(query: String) {
+        searchJob?.cancel()
+        searchJob = viewModelScope.launch {
+            delay(500)
+            _isSearching.value = true
+            try {
+                val storiesSnapshot = storiesCollection
+                    .whereGreaterThanOrEqualTo("content", query)
+                    .whereLessThanOrEqualTo("content", query + "\uf8ff")
+                    .limit(20)
+                    .get().await()
+                _searchStoriesResult.value = storiesSnapshot.toObjects(Story::class.java)
+
+                val usersSnapshot = db.collection("users")
+                    .whereGreaterThanOrEqualTo("name", query)
+                    .whereLessThanOrEqualTo("name", query + "\uf8ff")
+                    .limit(20)
+                    .get().await()
+                _searchUsersResult.value = usersSnapshot.toObjects(UserProfile::class.java)
+            } catch (e: Exception) {
+                Log.e("StoryViewModel", "Error searching", e)
+            } finally {
+                _isSearching.value = false
+            }
+        }
+    }
+    
     private val _savedPostIds = MutableStateFlow<Set<String>>(emptySet())
     val savedPostIds: StateFlow<Set<String>> = _savedPostIds.asStateFlow()
 
@@ -373,10 +429,37 @@ class StoryViewModel(val currentUserId: String = "my_user_id", private val curre
                 viewModelScope.launch {
                     try {
                         val isLiking = newLikes.contains(currentUserId)
-                        storiesCollection.document(storyId).update(
-                            "likedByUsers", if (isLiking) FieldValue.arrayUnion(currentUserId) else FieldValue.arrayRemove(currentUserId),
-                            "likesCount", if (isLiking) FieldValue.increment(1) else FieldValue.increment(-1)
-                        ).await()
+                        val storyRef = storiesCollection.document(storyId)
+                        val likeRef = storyRef.collection("likes").document(currentUserId)
+                        
+                        if (isLiking) {
+                            val likeData = hashMapOf(
+                                "userId" to currentUserId,
+                                "timestamp" to System.currentTimeMillis()
+                            )
+                            likeRef.set(likeData).await()
+                            storyRef.update(
+                                "likedByUsers", FieldValue.arrayUnion(currentUserId),
+                                "likesCount", FieldValue.increment(1)
+                            ).await()
+                            
+                            if (story.authorId != currentUserId) {
+                                val notif = Notification(
+                                    targetUserId = story.authorId,
+                                    sourceUserId = currentUserId,
+                                    sourceUserName = currentUserName,
+                                    type = "like",
+                                    storyId = storyId
+                                )
+                                db.collection("notifications").document(notif.id).set(notif)
+                            }
+                        } else {
+                            likeRef.delete().await()
+                            storyRef.update(
+                                "likedByUsers", FieldValue.arrayRemove(currentUserId),
+                                "likesCount", FieldValue.increment(-1)
+                            ).await()
+                        }
                     } catch (e: Exception) {
                         Log.e("StoryViewModel", "Error toggling like", e)
                     }
@@ -385,35 +468,43 @@ class StoryViewModel(val currentUserId: String = "my_user_id", private val curre
         }
     }
 
+    fun setFeedFilter(filter: String) {
+        _feedFilter.value = filter
+        updateUiState()
+    }
+
     fun addComment(storyId: String, content: String) {
-        val currentState = _uiState.value
-        if (currentState is StoryUiState.Success) {
-            val stories = currentState.stories.toMutableList()
-            val index = stories.indexOfFirst { it.id == storyId }
-            if (index != -1) {
-                val story = stories[index]
-                val newComment = Comment(
-                    authorId = currentUserId,
-                    authorName = currentUserName,
-                    authorHandle = "@user",
-                    content = content
-                )
-                val updatedComments = story.comments + newComment
-                val updatedStory = story.copy(
-                    comments = updatedComments,
-                    commentsCount = updatedComments.size
-                )
-                stories[index] = updatedStory
-                _uiState.value = StoryUiState.Success(stories.toList())
+        val newComment = Comment(
+            authorId = currentUserId,
+            authorName = currentUserName,
+            authorHandle = "@user",
+            content = content
+        )
+        viewModelScope.launch {
+            try {
+                // Add to subcollection
+                val commentRef = storiesCollection.document(storyId).collection("comments").document(newComment.id)
+                commentRef.set(newComment).await()
                 
-                // Update Firestore
-                viewModelScope.launch {
-                    try {
-                        storiesCollection.document(storyId).set(updatedStory).await()
-                    } catch (e: Exception) {
-                        Log.e("StoryViewModel", "Error adding comment", e)
-                    }
+                // Increment commentsCount in the story document
+                storiesCollection.document(storyId).update("commentsCount", FieldValue.increment(1)).await()
+                
+                // Get the story author to send notification
+                val storyDoc = storiesCollection.document(storyId).get().await()
+                val storyAuthorId = storyDoc.getString("authorId")
+                if (storyAuthorId != null && storyAuthorId != currentUserId) {
+                    val notif = Notification(
+                        targetUserId = storyAuthorId,
+                        sourceUserId = currentUserId,
+                        sourceUserName = currentUserName,
+                        type = "comment",
+                        storyId = storyId,
+                        content = content
+                    )
+                    db.collection("notifications").document(notif.id).set(notif)
                 }
+            } catch (e: Exception) {
+                Log.e("StoryViewModel", "Error adding comment", e)
             }
         }
     }

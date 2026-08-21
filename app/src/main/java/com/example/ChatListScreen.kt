@@ -15,6 +15,9 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import com.example.PresenceManagerInstance
+import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.border
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -29,6 +32,7 @@ fun ChatListScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val currentUserId = viewModel.currentUserId
+    val presenceMap by PresenceManagerInstance.instance.presenceMap.collectAsState()
 
     Scaffold(
         topBar = {
@@ -80,9 +84,11 @@ fun ChatListScreen(
                                 val otherUserId = channel.participants.firstOrNull { it != currentUserId } ?: "unknown"
                                 val otherUserName = channel.participantNames[otherUserId] ?: "Anonim"
                                 
+                                val isOnline = presenceMap[otherUserId]?.state == "online"
                                 ChatChannelItem(
                                     channel = channel,
                                     otherUserName = otherUserName,
+                                    isOnline = isOnline,
                                     onClick = { onNavigateToChat(otherUserId, otherUserName) }
                                 )
                                 HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
@@ -96,7 +102,7 @@ fun ChatListScreen(
 }
 
 @Composable
-fun ChatChannelItem(channel: ChatChannel, otherUserName: String, onClick: () -> Unit) {
+fun ChatChannelItem(channel: ChatChannel, otherUserName: String, isOnline: Boolean = false, onClick: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -105,17 +111,31 @@ fun ChatChannelItem(channel: ChatChannel, otherUserName: String, onClick: () -> 
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
-            modifier = Modifier
-                .size(48.dp)
-                .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.primaryContainer),
-            contentAlignment = Alignment.Center
+            modifier = Modifier.size(48.dp)
         ) {
-            Icon(
-                imageVector = Icons.Filled.Person,
-                contentDescription = "Avatar",
-                tint = MaterialTheme.colorScheme.onPrimaryContainer
-            )
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.primaryContainer),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Person,
+                    contentDescription = "Avatar",
+                    tint = MaterialTheme.colorScheme.onPrimaryContainer
+                )
+            }
+            if (isOnline) {
+                Box(
+                    modifier = Modifier
+                        .size(12.dp)
+                        .align(Alignment.BottomEnd)
+                        .clip(CircleShape)
+                        .background(Color(0xFF4CAF50))
+                        .border(2.dp, MaterialTheme.colorScheme.surface, CircleShape)
+                )
+            }
         }
         
         Spacer(modifier = Modifier.width(16.dp))

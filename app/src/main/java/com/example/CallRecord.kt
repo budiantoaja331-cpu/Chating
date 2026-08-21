@@ -1,10 +1,11 @@
 package com.example
+
 import androidx.annotation.Keep
 
 @Keep
 data class CallRecord(
     val id: String = "",
-    val participants: List<String> = emptyList(), // [callerId, receiverId] for easy querying
+    val participants: List<String> = emptyList(),
     val callerId: String = "",
     val callerName: String = "",
     val receiverId: String = "",
@@ -12,5 +13,6 @@ data class CallRecord(
     val timestamp: Long = 0L,
     val durationSeconds: Int = 0,
     val isVideoCall: Boolean = false,
-    val status: String = "" // "completed", "missed", "rejected"
+    val status: String = "",
+    val channelId: String = ""
 )

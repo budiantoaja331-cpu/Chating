@@ -20,7 +20,9 @@ import kotlinx.coroutines.tasks.await
     val age: Int = 0,
     val interests: String = "",
     val isProfileComplete: Boolean = false,
-    val blockedUsers: List<String> = emptyList()
+    val blockedUsers: List<String> = emptyList(),
+    val following: List<String> = emptyList(),
+    val followers: List<String> = emptyList()
 )
 
 sealed class UserProfileUiState {
@@ -38,6 +40,47 @@ class UserProfileViewModel(
     private val profilesCollection = db.collection("users")
     
     private val _uiState = MutableStateFlow<UserProfileUiState>(UserProfileUiState.Loading)
+    
+    private val _blockedUserProfiles = MutableStateFlow<List<UserProfile>>(emptyList())
+    val blockedUserProfiles: StateFlow<List<UserProfile>> = _blockedUserProfiles.asStateFlow()
+
+    fun loadBlockedUsers(blockedUserIds: List<String>) {
+        if (blockedUserIds.isEmpty()) {
+            _blockedUserProfiles.value = emptyList()
+            return
+        }
+        viewModelScope.launch {
+            try {
+                // Fetch in chunks of 10 to respect Firestore whereIn limits
+                val chunks = blockedUserIds.chunked(10)
+                val profiles = mutableListOf<UserProfile>()
+                for (chunk in chunks) {
+                    val snapshot = profilesCollection.whereIn(com.google.firebase.firestore.FieldPath.documentId(), chunk).get().await()
+                    profiles.addAll(snapshot.toObjects(UserProfile::class.java))
+                }
+                _blockedUserProfiles.value = profiles
+            } catch (e: Exception) {
+                Log.e("UserProfileViewModel", "Error loading blocked users", e)
+            }
+        }
+    }
+    
+    fun unblockUser(targetUserId: String) {
+        viewModelScope.launch {
+            try {
+                // Remove from UserSessionManager immediately so other screens update
+                UserSessionManager.unblockUser(targetUserId)
+                
+                // Then fetch the updated list 
+                // The UserSessionManager is already updating Firestore
+                
+                // Update local blocked user profiles list
+                _blockedUserProfiles.update { it.filter { profile -> profile.id != targetUserId } }
+            } catch (e: Exception) {
+                Log.e("UserProfileViewModel", "Error unblocking user", e)
+            }
+        }
+    }
     val uiState: StateFlow<UserProfileUiState> = _uiState.asStateFlow()
 
     init {
@@ -64,6 +107,28 @@ class UserProfileViewModel(
             } catch (e: Exception) {
                 Log.e("UserProfileViewModel", "Error loading profile", e)
                 _uiState.value = UserProfileUiState.Error(e.localizedMessage ?: "Unknown error")
+            }
+        }
+    }
+
+    fun updateAvatar(uri: android.net.Uri, onComplete: (Boolean) -> Unit) {
+        val currentState = _uiState.value
+        if (currentState !is UserProfileUiState.Success) return
+
+        viewModelScope.launch {
+            try {
+                val storageRef = com.google.firebase.storage.FirebaseStorage.getInstance().reference
+                val avatarRef = storageRef.child("avatars/$userId.jpg")
+                avatarRef.putFile(uri).await()
+                val downloadUrl = avatarRef.downloadUrl.await().toString()
+                
+                val updatedProfile = currentState.profile.copy(avatarUrl = downloadUrl)
+                _uiState.value = UserProfileUiState.Success(updatedProfile)
+                profilesCollection.document(userId).set(updatedProfile).await()
+                onComplete(true)
+            } catch (e: Exception) {
+                android.util.Log.e("UserProfileViewModel", "Error updating avatar", e)
+                onComplete(false)
             }
         }
     }

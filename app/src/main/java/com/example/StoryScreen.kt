@@ -13,11 +13,13 @@ import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.ChatBubbleOutline
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.outlined.Person
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
@@ -38,13 +40,21 @@ import coil.compose.AsyncImage
 @Composable
 fun StoryScreen(
     viewModel: StoryViewModel = viewModel(),
-    onNavigateToCreatePost: () -> Unit = {}
+    onNavigateToCreatePost: () -> Unit = {},
+    onNavigateToNotifications: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val isRefreshing by viewModel.isRefreshing.collectAsState()
     val savedPostIds by viewModel.savedPostIds.collectAsState()
+    val feedFilter by viewModel.feedFilter.collectAsState()
+    val context = androidx.compose.ui.platform.LocalContext.current
     val currentUserId = viewModel.currentUserId
     var selectedStoryForComments: Story? by remember { mutableStateOf(null) }
+    
+    val searchQuery by viewModel.searchQuery.collectAsState()
+    val isSearching by viewModel.isSearching.collectAsState()
+    val searchStoriesResult by viewModel.searchStoriesResult.collectAsState()
+    val searchUsersResult by viewModel.searchUsersResult.collectAsState()
 
     Scaffold(
         topBar = {
@@ -60,10 +70,10 @@ fun StoryScreen(
                     containerColor = MaterialTheme.colorScheme.background
                 ),
                 actions = {
-                    IconButton(onClick = { /* TODO: Navigate to Profile */ }) {
+                    IconButton(onClick = onNavigateToNotifications) {
                         Icon(
-                            imageVector = Icons.Outlined.Person,
-                            contentDescription = "Profile"
+                            imageVector = Icons.Filled.Notifications,
+                            contentDescription = "Notifikasi"
                         )
                     }
                 }
@@ -80,15 +90,126 @@ fun StoryScreen(
         },
         containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
     ) { innerPadding ->
-        PullToRefreshBox(
-            isRefreshing = isRefreshing,
-            onRefresh = { viewModel.refreshStories() },
+        Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding),
-            contentAlignment = Alignment.TopCenter
+                .padding(innerPadding)
         ) {
-            when (uiState) {
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = { viewModel.updateSearchQuery(it) },
+                placeholder = { Text("Cari postingan atau nama teman...") },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                leadingIcon = { Icon(Icons.Filled.Search, contentDescription = "Search") },
+                singleLine = true,
+                shape = RoundedCornerShape(24.dp)
+            )
+            
+            if (searchQuery.isBlank()) {
+                val filters = listOf("All", "Following", "Trending")
+                TabRow(
+                    selectedTabIndex = filters.indexOf(feedFilter).takeIf { it >= 0 } ?: 0,
+                    containerColor = MaterialTheme.colorScheme.background,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    filters.forEachIndexed { index, filter ->
+                        Tab(
+                            selected = feedFilter == filter,
+                            onClick = { viewModel.setFeedFilter(filter) },
+                            text = { 
+                                Text(
+                                    text = when (filter) {
+                                        "All" -> "Semua"
+                                        "Following" -> "Diikuti"
+                                        "Trending" -> "Populer"
+                                        else -> filter
+                                    }
+                                )
+                            }
+                        )
+                    }
+                }
+            }
+            
+            if (searchQuery.isNotBlank()) {
+                if (isSearching) {
+                    Box(modifier = Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator()
+                    }
+                } else {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(bottom = 80.dp)
+                    ) {
+                        if (searchUsersResult.isNotEmpty()) {
+                            item {
+                                Text("Pengguna", fontWeight = FontWeight.Bold, modifier = Modifier.padding(16.dp))
+                            }
+                            items(searchUsersResult) { user ->
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable { /* TODO */ }
+                                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(Icons.Outlined.Person, contentDescription = null, modifier = Modifier.size(40.dp))
+                                    Spacer(modifier = Modifier.width(12.dp))
+                                    Text(user.name, fontWeight = FontWeight.Medium)
+                                }
+                            }
+                        }
+                        
+                        if (searchStoriesResult.isNotEmpty()) {
+                            item {
+                                Text("Postingan", fontWeight = FontWeight.Bold, modifier = Modifier.padding(16.dp))
+                            }
+                            items(searchStoriesResult, key = { it.id }) { story ->
+                                StoryCard(
+                                    story = story,
+                                    currentUserId = currentUserId,
+                                    isBookmarked = savedPostIds.contains(story.id),
+                                    onLikeClick = { viewModel.toggleLike(story.id, story.likedByUsers) },
+                                    onCommentClick = { selectedStoryForComments = story },
+                                    onBookmarkClick = { viewModel.toggleBookmark(story.id) },
+                                    onBlockClick = { viewModel.blockUser(story.authorId) },
+                                    onReportClick = { viewModel.reportStory(story.id) },
+                                    onShareClick = {
+                                        val sendIntent = android.content.Intent().apply {
+                                            action = android.content.Intent.ACTION_SEND
+                                            putExtra(android.content.Intent.EXTRA_TEXT, "Lihat postingan dari ${story.authorName} di Chatmicall: \"${story.content}\"")
+                                            type = "text/plain"
+                                        }
+                                        val shareIntent = android.content.Intent.createChooser(sendIntent, null)
+                                        context.startActivity(shareIntent)
+                                    }
+                                )
+                            }
+                        }
+                        
+                        if (searchUsersResult.isEmpty() && searchStoriesResult.isEmpty()) {
+                            item {
+                                Text(
+                                    "Tidak ada hasil ditemukan.",
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(32.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            } else {
+                PullToRefreshBox(
+                    isRefreshing = isRefreshing,
+                    onRefresh = { viewModel.refreshStories() },
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .weight(1f),
+                    contentAlignment = Alignment.TopCenter
+                ) {
+                    when (uiState) {
                 is StoryUiState.Loading -> {
                     CircularProgressIndicator(modifier = Modifier.padding(top = 64.dp))
                 }
@@ -128,7 +249,16 @@ fun StoryScreen(
                                     onCommentClick = { selectedStoryForComments = story },
                                     onBookmarkClick = { viewModel.toggleBookmark(story.id) },
                                     onBlockClick = { viewModel.blockUser(story.authorId) },
-                                    onReportClick = { viewModel.reportStory(story.id) }
+                                    onReportClick = { viewModel.reportStory(story.id) },
+                                    onShareClick = {
+                                        val sendIntent = android.content.Intent().apply {
+                                            action = android.content.Intent.ACTION_SEND
+                                            putExtra(android.content.Intent.EXTRA_TEXT, "Lihat postingan dari ${story.authorName} di Chatmicall: \"${story.content}\"")
+                                            type = "text/plain"
+                                        }
+                                        val shareIntent = android.content.Intent.createChooser(sendIntent, null)
+                                        context.startActivity(shareIntent)
+                                    }
                                 )
                             }
                         }
@@ -139,13 +269,29 @@ fun StoryScreen(
     }
 
 
+    }
+    }
     selectedStoryForComments?.let { selectedStory ->
         val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
         var newCommentContent by remember { mutableStateOf("") }
+        
+        LaunchedEffect(selectedStory.id) {
+            viewModel.loadCommentsForStory(selectedStory.id)
+        }
+        
+        DisposableEffect(selectedStory.id) {
+            onDispose { viewModel.clearCommentsListener() }
+        }
+        
+        val comments by viewModel.currentComments.collectAsState()
+        
         // Find the most up-to-date story object in case a comment was just added
         val upToDateStory = (uiState as? StoryUiState.Success)?.stories?.find { it.id == selectedStory.id } ?: selectedStory
         ModalBottomSheet(
-            onDismissRequest = { selectedStoryForComments = null },
+            onDismissRequest = { 
+                selectedStoryForComments = null 
+                viewModel.clearCommentsListener()
+            },
             sheetState = sheetState,
             containerColor = MaterialTheme.colorScheme.surface
         ) {
@@ -162,7 +308,7 @@ fun StoryScreen(
                     modifier = Modifier.padding(bottom = 16.dp)
                 )
                 LazyColumn(modifier = Modifier.weight(1f, fill = false)) {
-                    items(upToDateStory.comments) { comment ->
+                    items(comments) { comment ->
                         Column(modifier = Modifier.padding(vertical = 8.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(
@@ -179,7 +325,7 @@ fun StoryScreen(
                             }
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
-                                text = comment.content,
+                                text = parseMarkdownLite(comment.content),
                                 style = MaterialTheme.typography.bodyMedium
                             )
                         }
@@ -221,7 +367,8 @@ fun StoryCard(
     onCommentClick: () -> Unit,
     onBookmarkClick: () -> Unit = {},
     onBlockClick: () -> Unit = {},
-    onReportClick: () -> Unit = {}
+    onReportClick: () -> Unit = {},
+    onShareClick: () -> Unit = {}
 ) {
     Card(
         modifier = Modifier
@@ -327,7 +474,7 @@ fun StoryCard(
             
             // Content
             Text(
-                text = story.content,
+                text = parseMarkdownLite(story.content),
                 style = MaterialTheme.typography.bodyLarge,
                 modifier = Modifier.padding(bottom = 12.dp)
             )
@@ -397,7 +544,10 @@ fun StoryCard(
                 // Share Button
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.padding(4.dp)
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(16.dp))
+                        .clickable { onShareClick() }
+                        .padding(4.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Filled.Share,
@@ -423,6 +573,71 @@ fun StoryCard(
                         modifier = Modifier.size(20.dp)
                     )
                 }
+            }
+        }
+    }
+}
+
+
+@Composable
+fun StorySkeleton() {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(0.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.background
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(top = 16.dp, bottom = 12.dp, start = 16.dp, end = 16.dp)
+        ) {
+            // Header
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                // Avatar
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(androidx.compose.foundation.shape.CircleShape)
+                        .shimmerEffect()
+                )
+                
+                Spacer(modifier = Modifier.width(12.dp))
+                
+                Column(modifier = Modifier.weight(1f)) {
+                    Box(modifier = Modifier.height(16.dp).fillMaxWidth(0.5f).shimmerEffect())
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Box(modifier = Modifier.height(12.dp).fillMaxWidth(0.3f).shimmerEffect())
+                }
+            }
+            
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            // Content
+            Box(modifier = Modifier.height(16.dp).fillMaxWidth().shimmerEffect())
+            Spacer(modifier = Modifier.height(8.dp))
+            Box(modifier = Modifier.height(16.dp).fillMaxWidth(0.8f).shimmerEffect())
+            Spacer(modifier = Modifier.height(8.dp))
+            Box(modifier = Modifier.height(16.dp).fillMaxWidth(0.6f).shimmerEffect())
+            
+            Spacer(modifier = Modifier.height(24.dp))
+            
+            // Actions
+            Row(
+                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(end = 48.dp)
+            ) {
+                Box(modifier = Modifier.size(24.dp).shimmerEffect())
+                Box(modifier = Modifier.size(24.dp).shimmerEffect())
+                Box(modifier = Modifier.size(24.dp).shimmerEffect())
+                Box(modifier = Modifier.size(24.dp).shimmerEffect())
             }
         }
     }

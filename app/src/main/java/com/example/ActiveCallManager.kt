@@ -57,12 +57,22 @@ class ActiveCallManager(private val currentUserId: String) {
     fun acceptCall(callId: String) {
         db.collection("active_calls").document(callId)
             .update("status", "accepted")
+        
+        // Update call history status to completed
+        db.collection("call_history").document(callId)
+            .update("status", "completed")
+            
         _incomingCall.value = null
     }
 
     fun rejectCall(callId: String) {
         db.collection("active_calls").document(callId)
             .update("status", "rejected")
+            
+        // Update call history status to rejected
+        db.collection("call_history").document(callId)
+            .update("status", "rejected")
+            
         _incomingCall.value = null
     }
     
@@ -80,5 +90,22 @@ class ActiveCallManager(private val currentUserId: String) {
             timestamp = System.currentTimeMillis()
         )
         db.collection("active_calls").document(callId).set(call)
+        
+        // Log to call history with missed status initially. 
+        // It will be updated if accepted/rejected.
+        val callRecord = CallRecord(
+            id = callId,
+            participants = listOf(currentUserId, receiverId),
+            callerId = currentUserId,
+            callerName = callerName,
+            receiverId = receiverId,
+            receiverName = receiverName,
+            timestamp = call.timestamp,
+            durationSeconds = 0,
+            isVideoCall = isVideo,
+            status = "missed",
+            channelId = channelId
+        )
+        db.collection("call_history").document(callId).set(callRecord)
     }
 }

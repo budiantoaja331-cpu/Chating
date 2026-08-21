@@ -7,6 +7,9 @@ import com.google.firebase.firestore.Query
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import androidx.lifecycle.viewModelScope
+import com.example.UserSessionManager
 
 sealed class ChatListUiState {
     object Loading : ChatListUiState()
@@ -21,8 +24,24 @@ class ChatListViewModel(val currentUserId: String = "my_user_id") : ViewModel() 
     private val _uiState = MutableStateFlow<ChatListUiState>(ChatListUiState.Loading)
     val uiState: StateFlow<ChatListUiState> = _uiState.asStateFlow()
 
+    private var _rawChannels = listOf<ChatChannel>()
+
     init {
         listenForChats()
+        viewModelScope.launch {
+            UserSessionManager.blockedUsers.collect {
+                updateUiState()
+            }
+        }
+    }
+
+    private fun updateUiState() {
+        val blockedUsers = UserSessionManager.blockedUsers.value
+        val filteredChannels = _rawChannels.filter { channel ->
+            val otherUserId = channel.participants.firstOrNull { it != currentUserId } ?: ""
+            otherUserId !in blockedUsers
+        }
+        _uiState.value = ChatListUiState.Success(filteredChannels)
     }
 
     private fun listenForChats() {
@@ -45,7 +64,9 @@ class ChatListViewModel(val currentUserId: String = "my_user_id") : ViewModel() 
                         }
                     }
                     channels.sortByDescending { it.lastMessageTime }
-                    _uiState.value = ChatListUiState.Success(channels)
+                    
+                    _rawChannels = channels
+                    updateUiState()
                 }
             }
     }

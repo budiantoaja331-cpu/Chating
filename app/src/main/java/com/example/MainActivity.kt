@@ -15,6 +15,8 @@ import androidx.compose.material.icons.outlined.Call
 import androidx.compose.material.icons.filled.DynamicFeed
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.filled.Add
 
 import androidx.compose.material.icons.outlined.DynamicFeed
@@ -107,6 +109,7 @@ sealed class Screen(
     object Story : Screen("feed", "Feed", Icons.Filled.DynamicFeed, Icons.Outlined.DynamicFeed)
     object CreatePost : Screen("create_post", "Buat Postingan", Icons.Filled.Add, Icons.Filled.Add)
     object Chat : Screen("chat", "Obrolan", Icons.AutoMirrored.Filled.Chat, Icons.AutoMirrored.Outlined.Chat)
+    object Notifications : Screen("notifications", "Notifikasi", Icons.Filled.Notifications, Icons.Outlined.Notifications)
     object CallHistory : Screen("call_history", "Panggilan", Icons.Filled.Call, Icons.Outlined.Call)
     object Profile : Screen("profile", "Profil", Icons.Filled.Person, Icons.Outlined.Person)
 }
@@ -153,7 +156,12 @@ fun MainAppScreen(userId: String, userName: String, profileImageUrl: String? = n
 
     DisposableEffect(userId) {
         callManager.startListening()
-        onDispose { callManager.stopListening() }
+        PresenceManagerInstance.instance.startTracking(userId)
+        UserSessionManager.startListening(userId)
+        onDispose { 
+            callManager.stopListening() 
+            PresenceManagerInstance.instance.stopTracking()
+        }
     }
 
     incomingCall?.let { call ->
@@ -226,8 +234,14 @@ fun MainAppScreen(userId: String, userName: String, profileImageUrl: String? = n
             composable(Screen.Story.route) { 
                 StoryScreen(
                     viewModel = viewModel(factory = appViewModelFactory),
-                    onNavigateToCreatePost = { navController.navigate(Screen.CreatePost.route) }
+                    onNavigateToCreatePost = { navController.navigate(Screen.CreatePost.route) },
+                    onNavigateToNotifications = { navController.navigate(Screen.Notifications.route) }
                 ) 
+            }
+            composable(Screen.Notifications.route) {
+                NotificationScreen(
+                    onNavigateBack = { navController.navigateUp() }
+                )
             }
             composable(Screen.CreatePost.route) {
                 CreatePostScreen(

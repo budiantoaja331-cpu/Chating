@@ -8,16 +8,25 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
+import androidx.activity.compose.rememberLauncherForActivityResult
+import com.canhub.cropper.CropImageContract
+import com.canhub.cropper.CropImageContractOptions
+import com.canhub.cropper.CropImageOptions
+import com.canhub.cropper.CropImageView
+import androidx.compose.foundation.clickable
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -28,17 +37,42 @@ fun UserProfileScreen(
     val uiState by viewModel.uiState.collectAsState()
     val storyUiState by storyViewModel.uiState.collectAsState()
     val savedPostIds by storyViewModel.savedPostIds.collectAsState()
+    val context = androidx.compose.ui.platform.LocalContext.current
     var isEditing by remember { mutableStateOf(false) }
     var editName by remember { mutableStateOf("") }
     var editBio by remember { mutableStateOf("") }
     var editNickname by remember { mutableStateOf("") }
     var editAge by remember { mutableStateOf("") }
     var editInterests by remember { mutableStateOf("") }
+    
+    var showMenu by remember { mutableStateOf(false) }
+    var showBlockedUsersDialog by remember { mutableStateOf(false) }
+    val blockedUserProfiles by viewModel.blockedUserProfiles.collectAsState()
+    val blockedUserIds by UserSessionManager.blockedUsers.collectAsState()
+    
+    LaunchedEffect(showBlockedUsersDialog, blockedUserIds) {
+        if (showBlockedUsersDialog) {
+            viewModel.loadBlockedUsers(blockedUserIds)
+        }
+    }
 
     var selectedStoryForComments: Story? by remember { mutableStateOf(null) }
     var selectedTab by remember { mutableStateOf(0) } // 0 = My Posts, 1 = Saved
+    var isUploadingAvatar by remember { mutableStateOf(false) }
 
-    val predefinedInterests = listOf("conten", "hiburan", "cari patner fantasi", "d'patner", "cari pasangan seumur hidup", "sewa pacar", "penyedia pacar sewa")
+    val cropImage = rememberLauncherForActivityResult(CropImageContract()) { result ->
+        if (result.isSuccessful) {
+            val uriContent = result.uriContent
+            if (uriContent != null) {
+                isUploadingAvatar = true
+                viewModel.updateAvatar(uriContent) { success ->
+                    isUploadingAvatar = false
+                }
+            }
+        }
+    }
+
+    val predefinedInterests = listOf("conten", "hiburan", "mencari partner", "cari pasangan seumur hidup", "sewa pacar", "penyedia pacar sewa")
 
     Scaffold(
         topBar = {
@@ -46,6 +80,21 @@ fun UserProfileScreen(
                 title = { Text("Profil Saya", fontWeight = FontWeight.Bold) },
                 actions = {
                     if (uiState is UserProfileUiState.Success) {
+                        IconButton(onClick = { showMenu = true }) {
+                            Icon(Icons.Filled.MoreVert, contentDescription = "Pengaturan")
+                        }
+                        DropdownMenu(
+                            expanded = showMenu,
+                            onDismissRequest = { showMenu = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Daftar Blokir") },
+                                onClick = { 
+                                    showMenu = false
+                                    showBlockedUsersDialog = true
+                                }
+                            )
+                        }
                         IconButton(onClick = {
                             if (isEditing) {
                                 // Save changes
@@ -63,7 +112,7 @@ fun UserProfileScreen(
                             }
                         }) {
                             Icon(
-                                imageVector = if (isEditing) Icons.Filled.Edit else Icons.Filled.Edit,
+                                imageVector = if (isEditing) Icons.Filled.Check else Icons.Filled.Edit,
                                 contentDescription = if (isEditing) "Simpan Profil" else "Edit Profil",
                                 tint = if (isEditing) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
                             )
@@ -111,7 +160,24 @@ fun UserProfileScreen(
                                     modifier = Modifier
                                         .size(120.dp)
                                         .clip(CircleShape)
-                                        .background(MaterialTheme.colorScheme.primaryContainer),
+                                        .background(MaterialTheme.colorScheme.primaryContainer)
+                                        .clickable {
+                                            if (isEditing) {
+                                                cropImage.launch(
+                                                    CropImageContractOptions(
+                                                        uri = null,
+                                                        cropImageOptions = CropImageOptions(
+                                                            imageSourceIncludeGallery = true,
+                                                            imageSourceIncludeCamera = true,
+                                                            cropShape = CropImageView.CropShape.OVAL,
+                                                            fixAspectRatio = true,
+                                                            aspectRatioX = 1,
+                                                            aspectRatioY = 1
+                                                        )
+                                                    )
+                                                )
+                                            }
+                                        },
                                     contentAlignment = Alignment.Center
                                 ) {
                                     if (profile.avatarUrl.isNotBlank()) {
@@ -128,6 +194,25 @@ fun UserProfileScreen(
                                             modifier = Modifier.size(64.dp),
                                             tint = MaterialTheme.colorScheme.onPrimaryContainer
                                         )
+                                    }
+                                    if (isUploadingAvatar) {
+                                        Box(
+                                            modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.5f)),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            CircularProgressIndicator(color = Color.White)
+                                        }
+                                    } else if (isEditing) {
+                                        Box(
+                                            modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.3f)),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Filled.Edit,
+                                                contentDescription = "Edit Avatar",
+                                                tint = Color.White
+                                            )
+                                        }
                                     }
                                 }
                                 
@@ -271,6 +356,7 @@ fun UserProfileScreen(
                         }
 
                         // My Posts or Saved Posts
+
                         if (storyUiState is StoryUiState.Success) {
                             val allStories = (storyUiState as StoryUiState.Success).stories
                             val filteredStories = if (selectedTab == 0) {
@@ -297,7 +383,16 @@ fun UserProfileScreen(
                                         onCommentClick = { selectedStoryForComments = story },
                                         onBookmarkClick = { storyViewModel.toggleBookmark(story.id) },
                                         onBlockClick = { storyViewModel.blockUser(story.authorId) },
-                                        onReportClick = { storyViewModel.reportStory(story.id) }
+                                        onReportClick = { storyViewModel.reportStory(story.id) },
+                                        onShareClick = {
+                                            val sendIntent = android.content.Intent().apply {
+                                                action = android.content.Intent.ACTION_SEND
+                                                putExtra(android.content.Intent.EXTRA_TEXT, "Lihat postingan dari ${story.authorName} di Chatmicall: \"${story.content}\"")
+                                                type = "text/plain"
+                                            }
+                                            val shareIntent = android.content.Intent.createChooser(sendIntent, null)
+                                            context.startActivity(shareIntent)
+                                        }
                                     )
                                 }
                             }
@@ -381,4 +476,53 @@ fun UserProfileScreen(
             }
         }
     }
+        if (showBlockedUsersDialog) {
+            AlertDialog(
+                onDismissRequest = { showBlockedUsersDialog = false },
+                title = { Text("Daftar Blokir") },
+                text = {
+                    if (blockedUserProfiles.isEmpty()) {
+                        Text("Tidak ada pengguna yang diblokir.")
+                    } else {
+                        LazyColumn(modifier = Modifier.fillMaxWidth()) {
+                            items(blockedUserProfiles) { profile ->
+                                Row(
+                                    modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        if (profile.avatarUrl.isNotEmpty()) {
+                                            AsyncImage(
+                                                model = profile.avatarUrl,
+                                                contentDescription = "Avatar",
+                                                modifier = Modifier.size(40.dp).clip(CircleShape),
+                                                contentScale = ContentScale.Crop
+                                            )
+                                        } else {
+                                            Box(
+                                                modifier = Modifier.size(40.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primaryContainer),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Icon(Icons.Filled.Person, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimaryContainer)
+                                            }
+                                        }
+                                        Spacer(modifier = Modifier.width(12.dp))
+                                        Text(profile.name, fontWeight = FontWeight.SemiBold)
+                                    }
+                                    TextButton(onClick = { viewModel.unblockUser(profile.id) }) {
+                                        Text("Buka Blokir", color = MaterialTheme.colorScheme.error)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = { showBlockedUsersDialog = false }) {
+                        Text("Tutup")
+                    }
+                }
+            )
+        }
 }

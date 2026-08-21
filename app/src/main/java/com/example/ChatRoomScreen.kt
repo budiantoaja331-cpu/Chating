@@ -20,6 +20,15 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.material.icons.filled.MoreVert
+import com.example.UserSessionManager
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import android.media.ToneGenerator
+import android.media.AudioManager
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.launch
 
@@ -42,13 +51,25 @@ fun ChatRoomScreen(
     var inputText by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
+    val presenceMap by PresenceManagerInstance.instance.presenceMap.collectAsState()
+    val otherUserOnline = presenceMap[otherUserId]?.state == "online"
+    var showMenu by remember { mutableStateOf(false) }
+    var initialLoad by remember { mutableStateOf(true) }
+    val context = LocalContext.current
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { 
                     TextButton(onClick = { onNavigateToProfile(otherUserId) }) {
-                        Text(otherUserName, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                        Column {
+                            Text(otherUserName, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                            if (otherUserOnline) {
+                                Text("Online", style = MaterialTheme.typography.bodySmall, color = Color(0xFF4CAF50))
+                            } else {
+                                Text("Offline", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
                     }
                 },
                 navigationIcon = {
@@ -62,6 +83,23 @@ fun ChatRoomScreen(
                     }
                     IconButton(onClick = { onNavigateToCall(otherUserId, true) }) {
                         Icon(Icons.Filled.Videocam, contentDescription = "Video Call")
+                    }
+                    IconButton(onClick = { showMenu = true }) {
+                        Icon(Icons.Filled.MoreVert, contentDescription = "Opsi")
+                    }
+                    DropdownMenu(
+                        expanded = showMenu,
+                        onDismissRequest = { showMenu = false }
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("Blokir Pengguna") },
+                            onClick = { 
+                                showMenu = false
+                                UserSessionManager.blockUser(otherUserId)
+                                android.widget.Toast.makeText(context, "Pengguna diblokir.", android.widget.Toast.LENGTH_SHORT).show()
+                                onNavigateBack()
+                            }
+                        )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -138,6 +176,21 @@ fun ChatRoomScreen(
                     LaunchedEffect(messages.size) {
                         if (messages.isNotEmpty()) {
                             listState.animateScrollToItem(messages.size - 1)
+                            
+                            val lastMessage = messages.last()
+                            if (!initialLoad && lastMessage.senderId != currentUserId) {
+                                // Play cute notification tone (PIP)
+                                try {
+                                    val toneGen = ToneGenerator(AudioManager.STREAM_NOTIFICATION, 100)
+                                    toneGen.startTone(ToneGenerator.TONE_CDMA_PIP, 150)
+                                    // Release after playing
+                                    kotlinx.coroutines.delay(200)
+                                    toneGen.release()
+                                } catch (e: Exception) {
+                                    e.printStackTrace()
+                                }
+                            }
+                            initialLoad = false
                         }
                     }
                     

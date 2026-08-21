@@ -13,6 +13,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -31,6 +32,7 @@ fun CallScreen(
     viewModel: CallViewModel = viewModel()
 ) {
     val context = LocalContext.current
+    var showBeautyMenu by remember { mutableStateOf(false) }
     val callState by viewModel.callState.collectAsState()
     
     val permissions = if (isVideoCall) {
@@ -58,6 +60,56 @@ fun CallScreen(
 
     Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
         if (permissionState.allPermissionsGranted) {
+            
+            // Connection Status Banner
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(top = 48.dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(Color.DarkGray.copy(alpha = 0.7f))
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+                    
+            ) {
+                val displayStatus = if (callState.remoteUid != null) {
+                    val mins = callState.durationSeconds / 60
+                    val secs = callState.durationSeconds % 60
+                    val timeStr = "${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}"
+                    val qualityText = when (callState.networkQuality) {
+                        1, 2 -> "Bagus"
+                        3 -> "Lumayan"
+                        4, 5, 6 -> "Buruk"
+                        else -> "Menghitung"
+                    }
+                    "$timeStr  •  Sinyal $qualityText"
+                } else {
+                    callState.connectionStatus
+                }
+                
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (callState.remoteUid != null) {
+                        val netColor = when (callState.networkQuality) {
+                            1, 2 -> Color.Green
+                            3 -> Color.Yellow
+                            4, 5, 6 -> Color.Red
+                            else -> Color.LightGray
+                        }
+                        Icon(
+                            imageVector = Icons.Filled.Wifi,
+                            contentDescription = "Sinyal",
+                            tint = netColor,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                    }
+                    Text(
+                        text = displayStatus,
+                        color = Color.White,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+            }
+
             // Video Layar Penuh (Teman / Remote)
             if (isVideoCall && callState.remoteUid != null) {
                 AndroidView(
@@ -165,17 +217,101 @@ fun CallScreen(
                             tint = Color.White
                         )
                     }
+                    
+                    // Tombol Filter Wajah (Beauty Effect)
+                    IconButton(
+                        onClick = { showBeautyMenu = !showBeautyMenu },
+                        modifier = Modifier
+                            .size(56.dp)
+                            .background(if (callState.beautyMode != BeautyMode.OFF) Color(0xFFFF4081) else Color.DarkGray, CircleShape)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.FaceRetouchingNatural,
+                            contentDescription = "Filter Cantik",
+                            tint = Color.White
+                        )
+                    }
                 } else {
                     Spacer(modifier = Modifier.size(56.dp))
                 }
             }
+            
+            // UI Overlay for Beauty Mode
+            if (showBeautyMenu && isVideoCall) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = 120.dp)
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp)
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(Color.DarkGray.copy(alpha = 0.9f))
+                        .padding(16.dp)
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("Pilih Filter Wajah", color = Color.White, style = MaterialTheme.typography.titleMedium)
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceEvenly
+                        ) {
+                            BeautyMode.values().forEach { mode ->
+                                val isSelected = callState.beautyMode == mode
+                                Button(
+                                    onClick = { viewModel.setBeautyMode(mode) },
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = if (isSelected) Color(0xFFFF4081) else Color.Gray
+                                    ),
+                                    shape = RoundedCornerShape(12.dp),
+                                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
+                                ) {
+                                    Text(mode.title, color = Color.White, fontSize = androidx.compose.ui.unit.TextUnit(12f, androidx.compose.ui.unit.TextUnitType.Sp))
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         } else {
             // Tampilan jika izin ditolak
-            Text(
-                "Membutuhkan izin Kamera dan Mikrofon untuk menelpon.",
-                color = Color.White,
-                modifier = Modifier.align(Alignment.Center)
-            )
+            Column(
+                modifier = Modifier.align(Alignment.Center),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Warning,
+                    contentDescription = "Warning",
+                    tint = Color.White,
+                    modifier = Modifier.size(64.dp)
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    "Izin Ditolak (Permission Denied)",
+                    color = Color.White,
+                    style = MaterialTheme.typography.titleLarge
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    "Aplikasi membutuhkan izin Kamera dan Mikrofon untuk melakukan panggilan.",
+                    color = Color.White,
+                    modifier = Modifier.padding(horizontal = 32.dp),
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                )
+                Spacer(modifier = Modifier.height(24.dp))
+                Button(
+                    onClick = { permissionState.launchMultiplePermissionRequest() },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                ) {
+                    Text("Berikan Izin")
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+                Button(
+                    onClick = onNavigateBack,
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
+                ) {
+                    Text("Kembali")
+                }
+            }
         }
     }
 }

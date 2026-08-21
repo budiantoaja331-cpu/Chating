@@ -113,6 +113,42 @@ fun CreatePostScreen(
                     )
                 )
             }
+            
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Formatting hints
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                SuggestionChip(
+                    onClick = { content += "**Tebal** " },
+                    label = { Text("B", fontWeight = FontWeight.Bold) }
+                )
+                SuggestionChip(
+                    onClick = { content += "*Miring* " },
+                    label = { Text("I", fontStyle = androidx.compose.ui.text.font.FontStyle.Italic) }
+                )
+                Text(
+                    text = "Gunakan ** atau *",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.align(Alignment.CenterVertically).padding(start = 4.dp)
+                )
+            }
+
+            if (content.isNotBlank()) {
+                Spacer(modifier = Modifier.height(16.dp))
+                HorizontalDivider()
+                Spacer(modifier = Modifier.height(8.dp))
+                Text("Pratinjau:", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = parseMarkdownLite(content),
+                    style = MaterialTheme.typography.bodyLarge,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
         }
     }
 }
