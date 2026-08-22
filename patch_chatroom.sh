@@ -1,3 +1,0 @@
-sed -i 's/class ChatRoomViewModelFactory(private val otherUserId: String, private val otherUserName: String) : ViewModelProvider.Factory/class ChatRoomViewModelFactory(private val otherUserId: String, private val otherUserName: String, private val currentUserId: String, private val currentUserName: String) : ViewModelProvider.Factory/' app/src/main/java/com/example/ChatRoomViewModel.kt
-
-sed -i 's/return ChatRoomViewModel(otherUserId, otherUserName) as T/return ChatRoomViewModel(otherUserId, otherUserName, currentUserId, currentUserName) as T/' app/src/main/java/com/example/ChatRoomViewModel.kt

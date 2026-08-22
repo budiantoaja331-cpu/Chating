@@ -1,1 +1,0 @@
-sed -i 's/val appViewModelFactory = remember { AppViewModelFactory(userId, userName) }/val appViewModelFactory = remember { AppViewModelFactory(profileImageUrl, userId, userName) }/' app/src/main/java/com/example/MainActivity.kt

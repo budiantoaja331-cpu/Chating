@@ -1,2 +1,0 @@
-sed -i 's/private val db = FirebaseFirestore.getInstance()/private val db: FirebaseFirestore? = try { FirebaseFirestore.getInstance() } catch (e: Exception) { null }/g' app/src/main/java/com/example/UserSessionManager.kt
-sed -i 's/private val db = FirebaseDatabase.getInstance()/private val db: FirebaseDatabase? = try { FirebaseDatabase.getInstance() } catch (e: Exception) { null }/g' app/src/main/java/com/example/PresenceManager.kt

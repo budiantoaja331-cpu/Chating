@@ -1,6 +1,6 @@
 {
-  "name": "Chatmicall",
-  "description": "A beautiful social media feed application built with Jetpack Compose.",
+  "name": "ChatMicAll",
+  "description": "Video calling application",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
