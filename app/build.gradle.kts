@@ -126,9 +126,10 @@ dependencies {
   // Sign-In via Credential Manager:
   implementation(libs.firebase.auth)
   implementation(libs.firebase.appcheck.playintegrity)
-    implementation(libs.firebase.storage)
-    implementation("com.vanniktech:android-image-cropper:4.6.0")
-    implementation(libs.firebase.messaging)
+  implementation(libs.firebase.storage)
+  implementation(libs.firebase.crashlytics)
+  implementation("com.vanniktech:android-image-cropper:4.6.0")
+  implementation(libs.firebase.messaging)
   implementation(libs.androidx.credentials)
   implementation(libs.androidx.credentials.play.services)
   implementation(libs.googleid)
