@@ -24,7 +24,7 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-          - name: Menyuntikkan konfigurasi Firebase (google-services.json)
+       - name: Menyuntikkan konfigurasi Firebase (google-services.json)
         env:
           GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
         run: |
