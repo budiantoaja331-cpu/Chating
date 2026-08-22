@@ -25,7 +25,7 @@ jobs:
         run: |
           echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > app/release.keystore
           cat << EOT > keystore.properties
-          storeFile=app/release.keystore
+          storeFile=release.keystore
           storePassword=${{ secrets.STORE_PASSWORD }}
           keyAlias=${{ secrets.KEY_ALIAS }}
           keyPassword=${{ secrets.KEY_PASSWORD }}
