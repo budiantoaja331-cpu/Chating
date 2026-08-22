@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.automirrored.outlined.Chat
+import androidx.compose.ui.res.stringResource
 
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.outlined.Call
@@ -51,7 +52,12 @@ import com.google.firebase.messaging.FirebaseMessaging
 import android.util.Log
 
 class MainActivity : ComponentActivity() {
-    
+
+    override fun attachBaseContext(newBase: android.content.Context) {
+        val updatedContext = LanguageHelper.applyLanguage(newBase)
+        super.attachBaseContext(updatedContext)
+    }
+
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { isGranted: Boolean ->
@@ -64,6 +70,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        LanguageHelper.applyLanguage(this)
         enableEdgeToEdge()
         
         askNotificationPermission()
@@ -101,17 +108,17 @@ class MainActivity : ComponentActivity() {
 
 sealed class Screen(
     val route: String, 
-    val title: String, 
+    val titleRes: Int, 
     val activeIcon: ImageVector, 
     val inactiveIcon: ImageVector
 ) {
-    object Nearby : Screen("nearby", "Teman", Icons.Filled.LocationOn, Icons.Outlined.LocationOn)
-    object Story : Screen("feed", "Feed", Icons.Filled.DynamicFeed, Icons.Outlined.DynamicFeed)
-    object CreatePost : Screen("create_post", "Buat Postingan", Icons.Filled.Add, Icons.Filled.Add)
-    object Chat : Screen("chat", "Obrolan", Icons.AutoMirrored.Filled.Chat, Icons.AutoMirrored.Outlined.Chat)
-    object Notifications : Screen("notifications", "Notifikasi", Icons.Filled.Notifications, Icons.Outlined.Notifications)
-    object CallHistory : Screen("call_history", "Panggilan", Icons.Filled.Call, Icons.Outlined.Call)
-    object Profile : Screen("profile", "Profil", Icons.Filled.Person, Icons.Outlined.Person)
+    object Nearby : Screen("nearby", R.string.nav_nearby, Icons.Filled.LocationOn, Icons.Outlined.LocationOn)
+    object Story : Screen("feed", R.string.nav_feed, Icons.Filled.DynamicFeed, Icons.Outlined.DynamicFeed)
+    object CreatePost : Screen("create_post", R.string.nav_create_post, Icons.Filled.Add, Icons.Filled.Add)
+    object Chat : Screen("chat", R.string.nav_chat, Icons.AutoMirrored.Filled.Chat, Icons.AutoMirrored.Outlined.Chat)
+    object Notifications : Screen("notifications", R.string.nav_notifications, Icons.Filled.Notifications, Icons.Outlined.Notifications)
+    object CallHistory : Screen("call_history", R.string.nav_calls, Icons.Filled.Call, Icons.Outlined.Call)
+    object Profile : Screen("profile", R.string.nav_profile, Icons.Filled.Person, Icons.Outlined.Person)
 }
 
 @Composable
@@ -127,7 +134,7 @@ fun RootScreen() {
                     LaunchedEffect(state.userId) {
                         android.widget.Toast.makeText(context, "Selamat datang, ${state.userName}!", android.widget.Toast.LENGTH_SHORT).show()
                     }
-                    MainAppScreen(state.userId, state.userName, state.profileImageUrl)
+                    MainAppScreen(state.userId, state.userName, state.profileImageUrl, onSignOut = { authViewModel.signOut() })
                 } else {
                     val profileViewModel = remember(state.userId) { UserProfileViewModel(state.userId, state.userName, state.profileImageUrl) }
                     ProfileSetupScreen(
@@ -148,7 +155,7 @@ fun RootScreen() {
 }
 
 @Composable
-fun MainAppScreen(userId: String, userName: String, profileImageUrl: String? = null) {
+fun MainAppScreen(userId: String, userName: String, profileImageUrl: String? = null, onSignOut: () -> Unit = {}) {
     val navController = rememberNavController()
     val context = LocalContext.current
     val callManager = remember(userId) { ActiveCallManager(userId) }
@@ -198,14 +205,15 @@ fun MainAppScreen(userId: String, userName: String, profileImageUrl: String? = n
                 
                 items.forEach { screen ->
                     val selected = currentRoute == screen.route
+                    val titleText = stringResource(screen.titleRes)
                     NavigationBarItem(
                         icon = { 
                             Icon(
                                 imageVector = if (selected) screen.activeIcon else screen.inactiveIcon, 
-                                contentDescription = screen.title 
+                                contentDescription = titleText 
                             ) 
                         },
-                        label = { Text(screen.title) },
+                        label = { Text(titleText) },
                         selected = selected,
                         onClick = {
                             navController.navigate(screen.route) {
@@ -235,7 +243,8 @@ fun MainAppScreen(userId: String, userName: String, profileImageUrl: String? = n
                 StoryScreen(
                     viewModel = viewModel(factory = appViewModelFactory),
                     onNavigateToCreatePost = { navController.navigate(Screen.CreatePost.route) },
-                    onNavigateToNotifications = { navController.navigate(Screen.Notifications.route) }
+                    onNavigateToNotifications = { navController.navigate(Screen.Notifications.route) },
+                    onNavigateToUserProfile = { userId -> navController.navigate("friendProfile/$userId") }
                 ) 
             }
             composable(Screen.Notifications.route) {
@@ -277,7 +286,13 @@ fun MainAppScreen(userId: String, userName: String, profileImageUrl: String? = n
                     onNavigateBack = { navController.navigateUp() }
                 )
             }
-            composable(Screen.Profile.route) { UserProfileScreen(viewModel(factory = appViewModelFactory), viewModel(factory = appViewModelFactory)) }
+            composable(Screen.Profile.route) { 
+                UserProfileScreen(
+                    onSignOut = onSignOut,
+                    viewModel = viewModel(factory = appViewModelFactory), 
+                    storyViewModel = viewModel(factory = appViewModelFactory)
+                ) 
+            }
             
             composable(
                 route = "friendProfile/{friendId}",

@@ -10,6 +10,7 @@ import androidx.lifecycle.viewModelScope
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.firestore.FirebaseFirestore
 import com.example.BuildConfig
@@ -29,11 +30,20 @@ sealed class AuthState {
 class AuthViewModel : ViewModel() {
     private val auth: FirebaseAuth? = try { FirebaseAuth.getInstance() } catch (e: Exception) { null }
     private val db = FirebaseFirestore.getInstance()
+
+    private val _currentUser = MutableStateFlow<FirebaseUser?>(auth?.currentUser)
+    val currentUser: StateFlow<FirebaseUser?> = _currentUser.asStateFlow()
+
     private val _authState = MutableStateFlow<AuthState>(AuthState.Idle)
     val authState: StateFlow<AuthState> = _authState.asStateFlow()
 
+    private val authStateListener = FirebaseAuth.AuthStateListener { firebaseAuth ->
+        _currentUser.value = firebaseAuth.currentUser
+    }
+
     init {
         Log.d("AuthInit", "AuthViewModel initialized. Checking current user...")
+        auth?.addAuthStateListener(authStateListener)
         checkCurrentUser()
     }
 
@@ -127,5 +137,10 @@ class AuthViewModel : ViewModel() {
         Log.d("AuthInit", "Signing out user.")
         auth?.signOut()
         _authState.value = AuthState.Idle
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        auth?.removeAuthStateListener(authStateListener)
     }
 }

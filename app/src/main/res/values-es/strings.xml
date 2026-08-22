@@ -1,0 +1,38 @@
+<resources>
+    <string name="app_name">Chatmicall</string>
+    <string name="nav_nearby">Amigos</string>
+    <string name="nav_feed">Inicio</string>
+    <string name="nav_create_post">Crear publicación</string>
+    <string name="nav_chat">Chat</string>
+    <string name="nav_notifications">Notificaciones</string>
+    <string name="nav_calls">Llamadas</string>
+    <string name="nav_profile">Perfil</string>
+    
+    <string name="profile_my_profile">Mi Perfil</string>
+    <string name="profile_edit_profile">Editar Perfil</string>
+    <string name="profile_blocked_users">Usuarios Bloqueados</string>
+    <string name="profile_language">Configuración de Idioma</string>
+    <string name="profile_sign_out">Cerrar Sesión</string>
+    <string name="profile_delete_account">Eliminar Cuenta</string>
+    <string name="profile_delete_account_confirm">¿Estás seguro de que deseas eliminar permanentemente tu cuenta? Todos tus datos, publicaciones y configuraciones se eliminarán y no se podrán recuperar.</string>
+    <string name="profile_select_language">Seleccionar Idioma</string>
+    <string name="profile_select_language_desc">Elige el idioma de visualización de la aplicación</string>
+    
+    <string name="action_save">Guardar</string>
+    <string name="action_cancel">Cancelar</string>
+    <string name="action_delete">Eliminar</string>
+    <string name="action_post">Publicar</string>
+    <string name="action_login">Iniciar Sesión</string>
+    <string name="action_register">Registrarse</string>
+    <string name="action_back">Volver</string>
+    <string name="action_close">Cerrar</string>
+
+    <string name="chat_type_message">Escribe un mensaje...</string>
+    <string name="chat_online">En línea</string>
+    <string name="chat_offline">Desconectado</string>
+    
+    <string name="call_voice">Llamada de Voz</string>
+    <string name="call_video">Videollamada</string>
+    <string name="call_calling">Llamando...</string>
+    <string name="call_ended">Llamada Finalizada</string>
+</resources>

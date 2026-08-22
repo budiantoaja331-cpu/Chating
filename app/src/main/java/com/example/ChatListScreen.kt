@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Chat
 import androidx.compose.material.icons.filled.Person
@@ -49,7 +50,12 @@ fun ChatListScreen(
         ) {
             when (uiState) {
                 is ChatListUiState.Loading -> {
-                    CircularProgressIndicator(modifier = Modifier.padding(top = 64.dp))
+                    LazyColumn(modifier = Modifier.fillMaxSize()) {
+                        items(6) {
+                            ChatChannelSkeleton()
+                            HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
+                        }
+                    }
                 }
                 is ChatListUiState.Error -> {
                     val message = (uiState as ChatListUiState.Error).message
@@ -173,3 +179,52 @@ fun ChatChannelItem(channel: ChatChannel, otherUserName: String, isOnline: Boole
         }
     }
 }
+
+@Composable
+fun ChatChannelSkeleton() {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(48.dp)
+                .clip(CircleShape)
+                .shimmerEffect()
+        )
+        Spacer(modifier = Modifier.width(16.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .height(18.dp)
+                        .fillMaxWidth(0.4f)
+                        .clip(RoundedCornerShape(4.dp))
+                        .shimmerEffect()
+                )
+                Box(
+                    modifier = Modifier
+                        .height(12.dp)
+                        .width(40.dp)
+                        .clip(RoundedCornerShape(4.dp))
+                        .shimmerEffect()
+                )
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            Box(
+                modifier = Modifier
+                    .height(14.dp)
+                    .fillMaxWidth(0.7f)
+                    .clip(RoundedCornerShape(4.dp))
+                    .shimmerEffect()
+            )
+        }
+    }
+}
+

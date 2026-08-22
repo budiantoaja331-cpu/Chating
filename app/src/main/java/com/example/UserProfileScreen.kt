@@ -10,6 +10,9 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Language
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.res.stringResource
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -31,6 +34,7 @@ import androidx.compose.foundation.clickable
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun UserProfileScreen(
+    onSignOut: () -> Unit = {},
     viewModel: UserProfileViewModel = viewModel(),
     storyViewModel: StoryViewModel = viewModel()
 ) {
@@ -47,6 +51,9 @@ fun UserProfileScreen(
     
     var showMenu by remember { mutableStateOf(false) }
     var showBlockedUsersDialog by remember { mutableStateOf(false) }
+    var showDeleteAccountDialog by remember { mutableStateOf(false) }
+    var showLanguageDialog by remember { mutableStateOf(false) }
+    var showPrivacyPolicyDialog by remember { mutableStateOf(false) }
     val blockedUserProfiles by viewModel.blockedUserProfiles.collectAsState()
     val blockedUserIds by UserSessionManager.blockedUsers.collectAsState()
     
@@ -88,10 +95,41 @@ fun UserProfileScreen(
                             onDismissRequest = { showMenu = false }
                         ) {
                             DropdownMenuItem(
-                                text = { Text("Daftar Blokir") },
+                                text = { Text(stringResource(R.string.profile_language)) },
+                                leadingIcon = { Icon(Icons.Filled.Language, contentDescription = null) },
+                                onClick = { 
+                                    showMenu = false
+                                    showLanguageDialog = true
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.profile_blocked_users)) },
                                 onClick = { 
                                     showMenu = false
                                     showBlockedUsersDialog = true
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.profile_privacy_policy)) },
+                                onClick = { 
+                                    showMenu = false
+                                    showPrivacyPolicyDialog = true
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.profile_sign_out), color = MaterialTheme.colorScheme.error) },
+                                onClick = { 
+                                    showMenu = false
+                                    UserSessionManager.logout()
+                                    com.google.firebase.auth.FirebaseAuth.getInstance().signOut()
+                                    onSignOut()
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.profile_delete_account), color = MaterialTheme.colorScheme.error) },
+                                onClick = { 
+                                    showMenu = false
+                                    showDeleteAccountDialog = true
                                 }
                             )
                         }
@@ -476,6 +514,37 @@ fun UserProfileScreen(
             }
         }
     }
+        if (showDeleteAccountDialog) {
+            AlertDialog(
+                onDismissRequest = { showDeleteAccountDialog = false },
+                title = { Text("Hapus Akun") },
+                text = { Text("Apakah Anda yakin ingin menghapus akun Anda secara permanen? Semua data profil, postingan, dan pengaturan akan dihapus dan tidak dapat dikembalikan.") },
+                confirmButton = {
+                    TextButton(
+                        onClick = { 
+                            showDeleteAccountDialog = false
+                            val user = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser
+                            user?.delete()?.addOnCompleteListener { task ->
+                                if (task.isSuccessful) {
+                                    UserSessionManager.logout()
+                                    onSignOut()
+                                } else {
+                                    android.widget.Toast.makeText(context, "Gagal menghapus akun. Silakan login kembali dan coba lagi.", android.widget.Toast.LENGTH_LONG).show()
+                                }
+                            }
+                        }
+                    ) {
+                        Text("Hapus", color = MaterialTheme.colorScheme.error)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showDeleteAccountDialog = false }) {
+                        Text("Batal")
+                    }
+                }
+            )
+        }
+        
         if (showBlockedUsersDialog) {
             AlertDialog(
                 onDismissRequest = { showBlockedUsersDialog = false },
@@ -521,6 +590,82 @@ fun UserProfileScreen(
                 confirmButton = {
                     TextButton(onClick = { showBlockedUsersDialog = false }) {
                         Text("Tutup")
+                    }
+                }
+            )
+        }
+
+        if (showLanguageDialog) {
+            AlertDialog(
+                onDismissRequest = { showLanguageDialog = false },
+                title = { Text(stringResource(R.string.profile_select_language)) },
+                text = {
+                    Column {
+                        Text(
+                            text = stringResource(R.string.profile_select_language_desc),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        LazyColumn(modifier = Modifier.fillMaxWidth().heightIn(max = 350.dp)) {
+                            items(LanguageHelper.supportedLanguages) { lang ->
+                                val isSelected = lang.code == LanguageHelper.getSavedLanguageCode(context)
+                                Surface(
+                                    onClick = {
+                                        showLanguageDialog = false
+                                        LanguageHelper.setLanguage(context, lang.code)
+                                    },
+                                    shape = RoundedCornerShape(12.dp),
+                                    color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
+                                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Text(text = lang.flag, style = MaterialTheme.typography.titleLarge)
+                                            Spacer(modifier = Modifier.width(12.dp))
+                                            Column {
+                                                Text(text = lang.nativeName, fontWeight = FontWeight.Bold)
+                                                Text(text = lang.name, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                            }
+                                        }
+                                        if (isSelected) {
+                                            Icon(
+                                                imageVector = Icons.Filled.Check,
+                                                contentDescription = "Selected",
+                                                tint = MaterialTheme.colorScheme.primary
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = { showLanguageDialog = false }) {
+                        Text(stringResource(R.string.action_close))
+                    }
+                }
+            )
+        }
+
+        if (showPrivacyPolicyDialog) {
+            AlertDialog(
+                onDismissRequest = { showPrivacyPolicyDialog = false },
+                title = { Text(stringResource(R.string.profile_privacy_policy_title)) },
+                text = {
+                    Text(
+                        text = stringResource(R.string.profile_privacy_policy_content),
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                },
+                confirmButton = {
+                    TextButton(onClick = { showPrivacyPolicyDialog = false }) {
+                        Text(stringResource(R.string.action_close))
                     }
                 }
             )

@@ -121,22 +121,26 @@ class StoryViewModel(val currentUserId: String = "my_user_id", private val curre
     private fun performSearch(query: String) {
         searchJob?.cancel()
         searchJob = viewModelScope.launch {
-            delay(500)
+            delay(300)
             _isSearching.value = true
             try {
-                val storiesSnapshot = storiesCollection
-                    .whereGreaterThanOrEqualTo("content", query)
-                    .whereLessThanOrEqualTo("content", query + "\uf8ff")
-                    .limit(20)
-                    .get().await()
-                _searchStoriesResult.value = storiesSnapshot.toObjects(Story::class.java)
+                val cleanQuery = query.trim().lowercase()
 
-                val usersSnapshot = db.collection("users")
-                    .whereGreaterThanOrEqualTo("name", query)
-                    .whereLessThanOrEqualTo("name", query + "\uf8ff")
-                    .limit(20)
-                    .get().await()
-                _searchUsersResult.value = usersSnapshot.toObjects(UserProfile::class.java)
+                val storiesSnapshot = storiesCollection.get().await()
+                val matchingStories = storiesSnapshot.toObjects(Story::class.java).filter {
+                    it.content.lowercase().contains(cleanQuery) ||
+                    it.authorName.lowercase().contains(cleanQuery) ||
+                    it.authorHandle.lowercase().contains(cleanQuery)
+                }.take(20)
+                _searchStoriesResult.value = matchingStories
+
+                val usersSnapshot = db.collection("users").get().await()
+                val matchingUsers = usersSnapshot.toObjects(UserProfile::class.java).filter { user ->
+                    user.name.lowercase().contains(cleanQuery) ||
+                    user.nickname.lowercase().contains(cleanQuery) ||
+                    user.id.lowercase().contains(cleanQuery)
+                }.take(20)
+                _searchUsersResult.value = matchingUsers
             } catch (e: Exception) {
                 Log.e("StoryViewModel", "Error searching", e)
             } finally {

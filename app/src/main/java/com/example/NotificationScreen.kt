@@ -50,7 +50,12 @@ fun NotificationScreen(
         ) {
             when (uiState) {
                 is NotificationUiState.Loading -> {
-                    CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                    LazyColumn(modifier = Modifier.fillMaxSize()) {
+                        items(5) {
+                            NotificationSkeleton()
+                            HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
+                        }
+                    }
                 }
                 is NotificationUiState.Error -> {
                     Text(
@@ -159,3 +164,39 @@ fun NotificationItem(notification: Notification, onClick: () -> Unit) {
         }
     }
 }
+
+@Composable
+fun NotificationSkeleton() {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(48.dp)
+                .clip(CircleShape)
+                .shimmerEffect()
+        )
+        Spacer(modifier = Modifier.width(16.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Box(
+                modifier = Modifier
+                    .height(16.dp)
+                    .fillMaxWidth(0.6f)
+                    .clip(androidx.compose.foundation.shape.RoundedCornerShape(4.dp))
+                    .shimmerEffect()
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Box(
+                modifier = Modifier
+                    .height(12.dp)
+                    .fillMaxWidth(0.3f)
+                    .clip(androidx.compose.foundation.shape.RoundedCornerShape(4.dp))
+                    .shimmerEffect()
+            )
+        }
+    }
+}
+

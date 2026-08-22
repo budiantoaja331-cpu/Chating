@@ -157,7 +157,15 @@ fun ChatRoomScreen(
         ) {
             when (uiState) {
                 is ChatRoomUiState.Loading -> {
-                    CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        items(6) { index ->
+                            ChatMessageSkeleton(isMe = index % 2 == 1)
+                        }
+                    }
                 }
                 is ChatRoomUiState.Error -> {
                     val message = (uiState as ChatRoomUiState.Error).message
@@ -241,3 +249,26 @@ fun MessageBubble(message: ChatMessage, isMe: Boolean) {
         }
     }
 }
+
+@Composable
+fun ChatMessageSkeleton(isMe: Boolean) {
+    val shape = if (isMe) {
+        RoundedCornerShape(16.dp, 16.dp, 0.dp, 16.dp)
+    } else {
+        RoundedCornerShape(16.dp, 16.dp, 16.dp, 0.dp)
+    }
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = if (isMe) Arrangement.End else Arrangement.Start
+    ) {
+        Box(
+            modifier = Modifier
+                .width(if (isMe) 180.dp else 220.dp)
+                .height(48.dp)
+                .clip(shape)
+                .shimmerEffect()
+        )
+    }
+}
+

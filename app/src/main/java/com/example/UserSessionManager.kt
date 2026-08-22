@@ -47,4 +47,12 @@ object UserSessionManager {
             db.collection("users").document(uid).update("blockedUsers", currentBlocked)
         }
     }
+    
+    fun logout() {
+        com.google.firebase.auth.FirebaseAuth.getInstance().signOut()
+        currentUserId = null
+        listenerRegistration?.remove()
+        listenerRegistration = null
+        _blockedUsers.value = emptyList()
+    }
 }

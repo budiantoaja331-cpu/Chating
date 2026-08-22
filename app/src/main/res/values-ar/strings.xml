@@ -1,0 +1,38 @@
+<resources>
+    <string name="app_name">Chatmicall</string>
+    <string name="nav_nearby">الأصدقاء</string>
+    <string name="nav_feed">المنشورات</string>
+    <string name="nav_create_post">إنشاء منشور</string>
+    <string name="nav_chat">المحادثات</string>
+    <string name="nav_notifications">الإشعارات</string>
+    <string name="nav_calls">المكالمات</string>
+    <string name="nav_profile">الملف الشخصي</string>
+    
+    <string name="profile_my_profile">ملفي الشخصي</string>
+    <string name="profile_edit_profile">تعديل الملف الشخصي</string>
+    <string name="profile_blocked_users">المستخدمون المحظورون</string>
+    <string name="profile_language">إعدادات اللغة</string>
+    <string name="profile_sign_out">تسجيل الخروج</string>
+    <string name="profile_delete_account">حذف الحساب</string>
+    <string name="profile_delete_account_confirm">هل أنت تأكد من أنك تريد حذف حسابك نهائياً؟ سيتم حذف جميع بياناتك ومنشوراتك وإعداداتك ولن يمكن استعادتها.</string>
+    <string name="profile_select_language">اختر اللغة</string>
+    <string name="profile_select_language_desc">اختر لغة عرض التطبيق</string>
+    
+    <string name="action_save">حفظ</string>
+    <string name="action_cancel">إلغاء</string>
+    <string name="action_delete">حذف</string>
+    <string name="action_post">نشر</string>
+    <string name="action_login">تسجيل الدخول</string>
+    <string name="action_register">إنشاء حساب</string>
+    <string name="action_back">رجوع</string>
+    <string name="action_close">إغلاق</string>
+
+    <string name="chat_type_message">اكتب رسالة...</string>
+    <string name="chat_online">متصل</string>
+    <string name="chat_offline">غير متصل</string>
+    
+    <string name="call_voice">مكالمة صوتية</string>
+    <string name="call_video">مكالمة فيديو</string>
+    <string name="call_calling">جاري الاتصال...</string>
+    <string name="call_ended">انتهت المكالمة</string>
+</resources>

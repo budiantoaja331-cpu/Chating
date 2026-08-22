@@ -22,6 +22,19 @@ class MyApplication : Application() {
             Log.d("AppStartup", "Initializing FirebaseApp manually...")
             FirebaseApp.initializeApp(this)
             Log.d("AppStartup", "FirebaseApp initialized successfully.")
+
+            // Configure Firestore Persistent Cache / Offline Persistence
+            try {
+                val firestore = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+                val settings = com.google.firebase.firestore.FirebaseFirestoreSettings.Builder()
+                    .setPersistenceEnabled(true)
+                    .setCacheSizeBytes(com.google.firebase.firestore.FirebaseFirestoreSettings.CACHE_SIZE_UNLIMITED)
+                    .build()
+                firestore.firestoreSettings = settings
+                Log.d("AppStartup", "Firestore offline persistence enabled successfully.")
+            } catch (e: Exception) {
+                Log.e("AppStartup", "Note on Firestore settings: ${e.message}")
+            }
         } catch (e: Exception) {
             Log.e("AppStartup", "CRITICAL: FirebaseApp initialization failed!", e)
         }

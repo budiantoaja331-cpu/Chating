@@ -41,7 +41,8 @@ import coil.compose.AsyncImage
 fun StoryScreen(
     viewModel: StoryViewModel = viewModel(),
     onNavigateToCreatePost: () -> Unit = {},
-    onNavigateToNotifications: () -> Unit = {}
+    onNavigateToNotifications: () -> Unit = {},
+    onNavigateToUserProfile: (String) -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val isRefreshing by viewModel.isRefreshing.collectAsState()
@@ -98,11 +99,18 @@ fun StoryScreen(
             OutlinedTextField(
                 value = searchQuery,
                 onValueChange = { viewModel.updateSearchQuery(it) },
-                placeholder = { Text("Cari postingan atau nama teman...") },
+                placeholder = { Text("Cari postingan, nama, atau @username...") },
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 8.dp),
                 leadingIcon = { Icon(Icons.Filled.Search, contentDescription = "Search") },
+                trailingIcon = {
+                    if (searchQuery.isNotBlank()) {
+                        IconButton(onClick = { viewModel.updateSearchQuery("") }) {
+                            Text("✕", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                },
                 singleLine = true,
                 shape = RoundedCornerShape(24.dp)
             )
@@ -138,6 +146,24 @@ fun StoryScreen(
                     Box(modifier = Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
                         CircularProgressIndicator()
                     }
+                } else if (searchUsersResult.isEmpty() && searchStoriesResult.isEmpty()) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(32.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text("🔍", style = MaterialTheme.typography.displayMedium)
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Text(
+                                text = "Tidak ditemukan pengguna atau postingan dengan kata kunci \"$searchQuery\"",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            )
+                        }
+                    }
                 } else {
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
@@ -145,28 +171,93 @@ fun StoryScreen(
                     ) {
                         if (searchUsersResult.isNotEmpty()) {
                             item {
-                                Text("Pengguna", fontWeight = FontWeight.Bold, modifier = Modifier.padding(16.dp))
+                                Text(
+                                    text = "Pengguna (${searchUsersResult.size})",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                                    color = MaterialTheme.colorScheme.primary
+                                )
                             }
-                            items(searchUsersResult) { user ->
-                                Row(
+                            items(searchUsersResult, key = { "user_${it.id}" }) { user ->
+                                Surface(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .clickable { /* TODO */ }
-                                        .padding(horizontal = 16.dp, vertical = 8.dp),
-                                    verticalAlignment = Alignment.CenterVertically
+                                        .padding(horizontal = 16.dp, vertical = 4.dp)
+                                        .clickable { onNavigateToUserProfile(user.id) },
+                                    shape = RoundedCornerShape(12.dp),
+                                    color = MaterialTheme.colorScheme.surface,
+                                    tonalElevation = 1.dp
                                 ) {
-                                    Icon(Icons.Outlined.Person, contentDescription = null, modifier = Modifier.size(40.dp))
-                                    Spacer(modifier = Modifier.width(12.dp))
-                                    Text(user.name, fontWeight = FontWeight.Medium)
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(12.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        if (user.avatarUrl.isNotEmpty()) {
+                                            AsyncImage(
+                                                model = user.avatarUrl,
+                                                contentDescription = user.name,
+                                                contentScale = ContentScale.Crop,
+                                                modifier = Modifier
+                                                    .size(48.dp)
+                                                    .clip(CircleShape)
+                                            )
+                                        } else {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(48.dp)
+                                                    .clip(CircleShape)
+                                                    .background(MaterialTheme.colorScheme.primaryContainer),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Text(
+                                                    text = user.name.take(1).uppercase().ifEmpty { "U" },
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                                )
+                                            }
+                                        }
+                                        Spacer(modifier = Modifier.width(12.dp))
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(
+                                                text = user.name.ifEmpty { "Pengguna" },
+                                                fontWeight = FontWeight.Bold,
+                                                style = MaterialTheme.typography.bodyLarge
+                                            )
+                                            val handleText = if (user.nickname.isNotEmpty()) "@${user.nickname}" else "@${user.id.take(8)}"
+                                            Text(
+                                                text = handleText,
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                            if (user.bio.isNotEmpty()) {
+                                                Text(
+                                                    text = user.bio,
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis,
+                                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                                                )
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }
                         
                         if (searchStoriesResult.isNotEmpty()) {
                             item {
-                                Text("Postingan", fontWeight = FontWeight.Bold, modifier = Modifier.padding(16.dp))
+                                Text(
+                                    text = "Postingan (${searchStoriesResult.size})",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                                    color = MaterialTheme.colorScheme.primary
+                                )
                             }
-                            items(searchStoriesResult, key = { it.id }) { story ->
+                            items(searchStoriesResult, key = { "story_${it.id}" }) { story ->
                                 StoryCard(
                                     story = story,
                                     currentUserId = currentUserId,
@@ -211,7 +302,14 @@ fun StoryScreen(
                 ) {
                     when (uiState) {
                 is StoryUiState.Loading -> {
-                    CircularProgressIndicator(modifier = Modifier.padding(top = 64.dp))
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(bottom = 80.dp)
+                    ) {
+                        items(4) {
+                            StorySkeleton()
+                        }
+                    }
                 }
                 is StoryUiState.Error -> {
                     val message = (uiState as StoryUiState.Error).message
