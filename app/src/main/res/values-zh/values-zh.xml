@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="action_back">返回</string>
+    <string name="action_cancel">取消</string>
+    <string name="action_close">关闭</string>
+    <string name="action_delete">删除</string>
+    <string name="action_login">登录</string>
+    <string name="action_post">发布</string>
+    <string name="action_register">注册</string>
+    <string name="action_save">保存</string>
+    <string name="app_name">Chatmicall</string>
+    <string name="call_calling">正在呼叫...</string>
+    <string name="call_ended">通话结束</string>
+    <string name="call_video">视频通话</string>
+    <string name="call_voice">语音通话</string>
+    <string name="chat_offline">离线</string>
+    <string name="chat_online">在线</string>
+    <string name="chat_type_message">输入消息...</string>
+    <string name="nav_calls">通话记录</string>
+    <string name="nav_chat">聊天</string>
+    <string name="nav_create_post">发布动态</string>
+    <string name="nav_feed">动态</string>
+    <string name="nav_nearby">好友</string>
+    <string name="nav_notifications">通知</string>
+    <string name="nav_profile">个人资料</string>
+    <string name="profile_blocked_users">黑名单</string>
+    <string name="profile_delete_account">注销账号</string>
+    <string name="profile_delete_account_confirm">您确定要永久注销您的账号吗？所有资料、动态和设置都将被删除且无法恢复。</string>
+    <string name="profile_edit_profile">编辑资料</string>
+    <string name="profile_language">语言设置</string>
+    <string name="profile_my_profile">我的资料</string>
+    <string name="profile_select_language">选择语言</string>
+    <string name="profile_select_language_desc">选择应用程序的显示语言</string>
+    <string name="profile_sign_out">退出登录</string>
+</resources>

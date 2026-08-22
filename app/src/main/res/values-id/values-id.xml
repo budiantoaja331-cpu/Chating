@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="action_back">Kembali</string>
+    <string name="action_cancel">Batal</string>
+    <string name="action_close">Tutup</string>
+    <string name="action_delete">Hapus</string>
+    <string name="action_login">Masuk</string>
+    <string name="action_post">Posting</string>
+    <string name="action_register">Daftar</string>
+    <string name="action_save">Simpan</string>
+    <string name="app_name">Chatmicall</string>
+    <string name="call_calling">Memanggil...</string>
+    <string name="call_ended">Panggilan Selesai</string>
+    <string name="call_video">Panggilan Video</string>
+    <string name="call_voice">Panggilan Suara</string>
+    <string name="chat_offline">Offline</string>
+    <string name="chat_online">Online</string>
+    <string name="chat_type_message">Tulis pesan...</string>
+    <string name="login_card_subtitle">Gunakan Akun Google untuk verifikasi instan &amp; aman</string>
+    <string name="login_card_title">Masuk ke Akun Anda</string>
+    <string name="login_connecting">Sedang menghubungkan dengan aman...</string>
+    <string name="login_google_btn">Lanjutkan dengan Google</string>
+    <string name="login_privacy_note">Dengan masuk, Anda menyetujui Kebijakan Privasi &amp; Ketentuan Layanan Chatmicall.</string>
+    <string name="login_try_again">Coba Lagi Dengan Google</string>
+    <string name="nav_calls">Panggilan</string>
+    <string name="nav_chat">Obrolan</string>
+    <string name="nav_create_post">Buat Postingan</string>
+    <string name="nav_feed">Feed</string>
+    <string name="nav_nearby">Teman</string>
+    <string name="nav_notifications">Notifikasi</string>
+    <string name="nav_profile">Profil</string>
+    <string name="profile_blocked_users">Daftar Blokir</string>
+    <string name="profile_delete_account">Hapus Akun</string>
+    <string name="profile_delete_account_confirm">Apakah Anda yakin ingin menghapus akun Anda secara permanen? Semua data profil, postingan, dan pengaturan akan dihapus dan tidak dapat dikembalikan.</string>
+    <string name="profile_edit_profile">Edit Profil</string>
+    <string name="profile_language">Pengaturan Bahasa</string>
+    <string name="profile_my_profile">Profil Saya</string>
+    <string name="profile_privacy_policy">Kebijakan Privasi</string>
+    <string name="profile_privacy_policy_content">Chatmicall menghargai privasi Anda dan mematuhi standar perlindungan data global (GDPR / CCPA).\n\n1. Pengumpulan Data: Kami hanya mengumpulkan informasi dasar (nama, email, foto profil) untuk fungsi aplikasi.\n2. Kontrol Data: Anda dapat mengedit atau menghapus akun Anda secara permanen kapan saja.\n3. Enkripsi: Seluruh komunikasi diamankan menggunakan enkripsi SSL/TLS dan Agora RTC.</string>
+    <string name="profile_privacy_policy_title">Kebijakan Privasi &amp; Ketentuan</string>
+    <string name="profile_select_language">Pilih Bahasa</string>
+    <string name="profile_select_language_desc">Pilih bahasa tampilan untuk aplikasi</string>
+    <string name="profile_sign_out">Keluar (Logout)</string>
+    <string name="welcome_subtitle">Merupakan suatu kehormatan bagi kami untuk menyambut Anda di komunitas global Chatmicall.</string>
+    <string name="welcome_title">Selamat Datang!</string>
+</resources>
