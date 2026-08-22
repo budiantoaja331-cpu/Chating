@@ -1,6 +1,8 @@
 package com.example
 
+import android.app.Activity
 import android.content.Context
+import android.content.ContextWrapper
 import android.util.Log
 import androidx.credentials.CredentialManager
 import androidx.credentials.GetCredentialRequest
@@ -27,6 +29,15 @@ sealed class AuthState {
     data class Error(val message: String) : AuthState()
 }
 
+fun Context.findActivity(): Activity? {
+    var context = this
+    while (context is ContextWrapper) {
+        if (context is Activity) return context
+        context = context.baseContext
+    }
+    return null
+}
+
 class AuthViewModel : ViewModel() {
     private val auth: FirebaseAuth? = try { FirebaseAuth.getInstance() } catch (e: Exception) { null }
     private val db: FirebaseFirestore? = try { FirebaseFirestore.getInstance() } catch (e: Exception) { null }
@@ -43,9 +54,8 @@ class AuthViewModel : ViewModel() {
 
     init {
         Log.d("AuthInit", "AuthViewModel initialized. Checking current user...")
-        
         if (auth == null || db == null) {
-            _authState.value = AuthState.Error("Firebase gagal diinisialisasi. Jika menggunakan GitHub Actions, pastikan google-services.json disertakan (via secret).")
+            _authState.value = AuthState.Error("Firebase gagal diinisialisasi. Pastikan konfigurasi google-services.json ada.")
         } else {
             auth.addAuthStateListener(authStateListener)
             checkCurrentUser()
@@ -72,11 +82,8 @@ class AuthViewModel : ViewModel() {
             try {
                 val user = auth?.currentUser
                 if (user != null) {
-                    Log.d("AuthInit", "Found existing user: ${user.uid}")
                     val isComplete = fetchProfileCompletionStatus(user.uid)
                     _authState.value = AuthState.Success(user.uid, user.displayName ?: "User", user.photoUrl?.toString(), isComplete)
-                } else {
-                    Log.d("AuthInit", "No existing user found. Waiting for login.")
                 }
             } catch (e: Exception) {
                 Log.e("AuthInit", "Exception during checkCurrentUser: ${e.message}", e)
@@ -86,10 +93,15 @@ class AuthViewModel : ViewModel() {
 
     fun signInWithGoogle(context: Context) {
         viewModelScope.launch {
-            Log.d("AuthInit", "Starting Google Sign-In process...")
             _authState.value = AuthState.Loading
             try {
-                val credentialManager = CredentialManager.create(context)
+                val activity = context.findActivity()
+                if (activity == null) {
+                    _authState.value = AuthState.Error("Gagal menemukan Activity untuk Google Sign-In")
+                    return@launch
+                }
+
+                val credentialManager = CredentialManager.create(activity)
                 
                 val googleIdOption = GetGoogleIdOption.Builder()
                     .setFilterByAuthorizedAccounts(false)
@@ -101,7 +113,7 @@ class AuthViewModel : ViewModel() {
                     .addCredentialOption(googleIdOption)
                     .build()
                 
-                val result = credentialManager.getCredential(context, request)
+                val result = credentialManager.getCredential(activity, request)
                 val credential = result.credential
                 
                 if (credential is GoogleIdTokenCredential) {
@@ -111,36 +123,42 @@ class AuthViewModel : ViewModel() {
                     val user = authResult?.user
                     
                     if (user != null) {
-                        Log.d("AuthInit", "Firebase sign-in successful. UID: ${user.uid}")
                         val isComplete = fetchProfileCompletionStatus(user.uid)
                         _authState.value = AuthState.Success(user.uid, user.displayName ?: "User", user.photoUrl?.toString(), isComplete)
                     } else {
-                        Log.e("AuthInit", "Firebase sign-in failed: Data pengguna kosong.")
                         _authState.value = AuthState.Error("Login gagal: Data pengguna kosong")
                     }
                 } else {
-                    Log.e("AuthInit", "Unknown credential type received.")
                     _authState.value = AuthState.Error("Tipe kredensial tidak valid")
                 }
             } catch (e: GetCredentialException) {
                 Log.e("AuthInit", "GetCredentialException caught: ${e.message}", e)
-                _authState.value = AuthState.Error("Gagal memanggil Google Sign-In: ${e.message}")
-            } catch (e: Exception) {
+                val msg = if (e.localizedMessage?.contains("10") == true || e.type.contains("10") || e.message?.contains("DEVELOPER_ERROR") == true) {
+                    "Gagal Login (Error 10): SHA-1 Keystore Release belum didaftarkan di Firebase Console. Pastikan SHA-1 Github terdaftar."
+                } else if (e.localizedMessage?.contains("28433") == true || e.localizedMessage?.contains("CANCELED") == true || e.type.contains("CANCELED")) {
+                    "Proses login dibatalkan."
+                } else {
+                    "Gagal autentikasi Google: ${e.localizedMessage}"
+                }
+                _authState.value = AuthState.Error(msg)
+            } catch (e: Throwable) {
                 Log.e("AuthInit", "Unexpected Exception in signInWithGoogle: ${e.message}", e)
-                _authState.value = AuthState.Error("Kesalahan tidak terduga: ${e.message}")
+                if (e is kotlinx.coroutines.CancellationException) {
+                    throw e
+                }
+                _authState.value = AuthState.Error("Kesalahan tidak terduga: ${e.localizedMessage}")
             }
         }
     }
-    
+
     fun markProfileComplete() {
         val current = _authState.value
         if (current is AuthState.Success) {
             _authState.value = current.copy(isProfileComplete = true)
         }
     }
-    
+
     fun signOut() {
-        Log.d("AuthInit", "Signing out user.")
         auth?.signOut()
         _authState.value = AuthState.Idle
     }

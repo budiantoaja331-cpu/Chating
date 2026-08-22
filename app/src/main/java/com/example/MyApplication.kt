@@ -3,6 +3,8 @@ package com.example
 import android.app.Application
 import android.util.Log
 import com.google.firebase.FirebaseApp
+import com.google.firebase.appcheck.FirebaseAppCheck
+import com.google.firebase.appcheck.playintegrity.PlayIntegrityAppCheckProviderFactory
 import androidx.annotation.Keep
 import java.lang.Thread.UncaughtExceptionHandler
 
@@ -21,6 +23,10 @@ class MyApplication : Application() {
             Log.d("AppStartup", "MyApplication onCreate triggered.")
             Log.d("AppStartup", "Initializing FirebaseApp manually...")
             FirebaseApp.initializeApp(this)
+            FirebaseAppCheck.getInstance().installAppCheckProviderFactory(
+                PlayIntegrityAppCheckProviderFactory.getInstance()
+            )
+            Log.d("AppStartup", "Firebase App Check (Play Integrity) initialized.")
             Log.d("AppStartup", "FirebaseApp initialized successfully.")
 
             // Configure Firestore Persistent Cache / Offline Persistence
