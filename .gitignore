@@ -18,3 +18,11 @@ local.properties
 *.keystore
 keystore_base64.txt
 *.jks
+-e 
+# Keystore properties
+keystore.properties
+*.jks
+*.keystore
+!debug.keystore
+!debug.keystore.base64
+

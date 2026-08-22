@@ -1,4 +1,12 @@
 import com.google.gms.googleservices.GoogleServicesPlugin.MissingGoogleServicesStrategy
+import java.io.FileInputStream
+import java.util.Properties
+
+val keystorePropertiesFile = rootProject.file("keystore.properties")
+val keystoreProperties = Properties()
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(FileInputStream(keystorePropertiesFile))
+}
 
 plugins {
   alias(libs.plugins.android.application)
@@ -7,7 +15,6 @@ plugins {
   alias(libs.plugins.roborazzi)
   alias(libs.plugins.secrets)
   alias(libs.plugins.google.services)
-  alias(libs.plugins.google.firebase.crashlytics)
 }
 
 android {
@@ -27,6 +34,15 @@ android {
   }
 
   signingConfigs {
+    create("release") {
+      val storeFilePath = keystoreProperties.getProperty("storeFile")
+      if (storeFilePath != null) {
+        storeFile = file(storeFilePath)
+        storePassword = keystoreProperties.getProperty("storePassword")
+        keyAlias = keystoreProperties.getProperty("keyAlias")
+        keyPassword = keystoreProperties.getProperty("keyPassword")
+      }
+    }
     create("debugConfig") {
       storeFile = file("${rootDir}/debug.keystore")
       storePassword = "android"
@@ -40,7 +56,7 @@ android {
       isCrunchPngs = false
       isMinifyEnabled = true
       proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-      // signingConfig = signingConfigs.getByName("release")
+      signingConfig = signingConfigs.getByName("release")
     }
     debug { signingConfig = signingConfigs.getByName("debugConfig") }
   }
@@ -110,7 +126,6 @@ dependencies {
   // Sign-In via Credential Manager:
   implementation(libs.firebase.auth)
   implementation(libs.firebase.appcheck.playintegrity)
-  implementation(libs.firebase.crashlytics)
     implementation(libs.firebase.storage)
     implementation("com.vanniktech:android-image-cropper:4.6.0")
     implementation(libs.firebase.messaging)

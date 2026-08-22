@@ -1,5 +1,4 @@
-name: Build Unsigned AAB
-
+name: Build Signed AAB
 on:
   push:
     branches:
@@ -13,7 +12,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write # Izin wajib untuk membuat GitHub Release otomatis
-
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -27,7 +25,18 @@ jobs:
       - name: Setup google-services.json
         env:
           GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
-        run: echo $GOOGLE_SERVICES_JSON | base64 -d > app/google-services.json
+        run: echo "$GOOGLE_SERVICES_JSON" > app/google-services.json
+
+      - name: Setup Keystore
+        run: |
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > app/release.keystore
+          cat << EOT > keystore.properties
+          storeFile=app/release.keystore
+          storePassword=${{ secrets.STORE_PASSWORD }}
+          keyAlias=${{ secrets.KEY_ALIAS }}
+          keyPassword=${{ secrets.KEY_PASSWORD }}
+          EOT
+
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
