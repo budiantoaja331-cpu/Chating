@@ -2,6 +2,8 @@ package com.example
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.google.firebase.firestore.ktx.firestore
+import com.google.firebase.ktx.Firebase
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -21,6 +23,20 @@ class UserProfileViewModel : ViewModel() {
             UserManager.currentUser.collect { profile ->
                 if (profile != null) {
                     _uiState.value = UserProfileUiState.Success(profile)
+                    try {
+                        val db = Firebase.firestore
+                        db.collection("users").document(profile.id).get()
+                            .addOnSuccessListener { doc ->
+                                if (doc.exists()) {
+                                    val firestoreProfile = doc.toObject(UserProfile::class.java)?.copy(id = doc.id)
+                                    if (firestoreProfile != null) {
+                                        UserManager.updateProfile(firestoreProfile)
+                                    }
+                                }
+                            }
+                    } catch (e: Exception) {
+                        // ignore
+                    }
                 }
             }
         }
