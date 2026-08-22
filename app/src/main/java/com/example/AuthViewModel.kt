@@ -29,7 +29,7 @@ sealed class AuthState {
 
 class AuthViewModel : ViewModel() {
     private val auth: FirebaseAuth? = try { FirebaseAuth.getInstance() } catch (e: Exception) { null }
-    private val db = FirebaseFirestore.getInstance()
+    private val db: FirebaseFirestore? = try { FirebaseFirestore.getInstance() } catch (e: Exception) { null }
 
     private val _currentUser = MutableStateFlow<FirebaseUser?>(auth?.currentUser)
     val currentUser: StateFlow<FirebaseUser?> = _currentUser.asStateFlow()
@@ -43,11 +43,17 @@ class AuthViewModel : ViewModel() {
 
     init {
         Log.d("AuthInit", "AuthViewModel initialized. Checking current user...")
-        auth?.addAuthStateListener(authStateListener)
-        checkCurrentUser()
+        
+        if (auth == null || db == null) {
+            _authState.value = AuthState.Error("Firebase gagal diinisialisasi. Jika menggunakan GitHub Actions, pastikan google-services.json disertakan (via secret).")
+        } else {
+            auth.addAuthStateListener(authStateListener)
+            checkCurrentUser()
+        }
     }
 
     private suspend fun fetchProfileCompletionStatus(uid: String): Boolean {
+        if (db == null) return false
         return try {
             val doc = db.collection("users").document(uid).get().await()
             if (doc.exists()) {
