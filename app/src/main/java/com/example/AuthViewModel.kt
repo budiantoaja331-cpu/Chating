@@ -11,6 +11,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
+import com.google.firebase.crashlytics.FirebaseCrashlytics
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.GoogleAuthProvider
@@ -143,6 +144,7 @@ class AuthViewModel : ViewModel() {
                 _authState.value = AuthState.Error(msg)
             } catch (e: Throwable) {
                 Log.e("AuthInit", "Unexpected Exception in signInWithGoogle: ${e.message}", e)
+                try { FirebaseCrashlytics.getInstance().recordException(e) } catch(ex: Exception) {}
                 if (e is kotlinx.coroutines.CancellationException) {
                     throw e
                 }

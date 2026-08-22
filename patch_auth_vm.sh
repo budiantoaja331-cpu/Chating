@@ -1,0 +1,2 @@
+sed -i 's/import com.google.firebase.auth.FirebaseAuth/import com.google.firebase.crashlytics.FirebaseCrashlytics\nimport com.google.firebase.auth.FirebaseAuth/' app/src/main/java/com/example/AuthViewModel.kt
+sed -i 's/Log.e("AuthInit", "Unexpected Exception in signInWithGoogle: ${e.message}", e)/Log.e("AuthInit", "Unexpected Exception in signInWithGoogle: ${e.message}", e)\n                try { FirebaseCrashlytics.getInstance().recordException(e) } catch(ex: Exception) {}/' app/src/main/java/com/example/AuthViewModel.kt

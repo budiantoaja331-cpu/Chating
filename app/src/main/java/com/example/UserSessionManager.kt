@@ -7,7 +7,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 object UserSessionManager {
-    private val db = FirebaseFirestore.getInstance()
+    private val db: FirebaseFirestore? = try { FirebaseFirestore.getInstance() } catch (e: Exception) { null }
     private val _blockedUsers = MutableStateFlow<List<String>>(emptyList())
     val blockedUsers: StateFlow<List<String>> = _blockedUsers.asStateFlow()
 
@@ -18,7 +18,7 @@ object UserSessionManager {
         if (currentUserId == userId) return
         currentUserId = userId
         listenerRegistration?.remove()
-        listenerRegistration = db.collection("users").document(userId).addSnapshotListener { snapshot, e ->
+        listenerRegistration = db?.collection("users")?.document(userId)?.addSnapshotListener { snapshot, e ->
             if (e != null) {
                 Log.w("UserSessionManager", "Listen failed.", e)
                 return@addSnapshotListener
@@ -35,7 +35,7 @@ object UserSessionManager {
         val currentBlocked = _blockedUsers.value.toMutableList()
         if (!currentBlocked.contains(blockedUserId)) {
             currentBlocked.add(blockedUserId)
-            db.collection("users").document(uid).update("blockedUsers", currentBlocked)
+            db?.collection("users")?.document(uid)?.update("blockedUsers", currentBlocked)
         }
     }
     
@@ -44,12 +44,12 @@ object UserSessionManager {
         val currentBlocked = _blockedUsers.value.toMutableList()
         if (currentBlocked.contains(blockedUserId)) {
             currentBlocked.remove(blockedUserId)
-            db.collection("users").document(uid).update("blockedUsers", currentBlocked)
+            db?.collection("users")?.document(uid)?.update("blockedUsers", currentBlocked)
         }
     }
     
     fun logout() {
-        com.google.firebase.auth.FirebaseAuth.getInstance().signOut()
+        try { com.google.firebase.auth.FirebaseAuth.getInstance().signOut() } catch (e: Exception) {}
         currentUserId = null
         listenerRegistration?.remove()
         listenerRegistration = null

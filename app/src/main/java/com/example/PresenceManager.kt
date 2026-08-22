@@ -15,21 +15,20 @@ data class PresenceState(
 )
 
 class PresenceManager {
-    private val db = FirebaseDatabase.getInstance()
-    private val connectedRef = db.getReference(".info/connected")
+    private val db: FirebaseDatabase? = try { FirebaseDatabase.getInstance() } catch (e: Exception) { null }
+    private val connectedRef = db?.getReference(".info/connected")
     private var currentUserRef: com.google.firebase.database.DatabaseReference? = null
     private var connectedListener: ValueEventListener? = null
 
-    // Cache of other users' presence
     private val _presenceMap = MutableStateFlow<Map<String, PresenceState>>(emptyMap())
     val presenceMap: StateFlow<Map<String, PresenceState>> = _presenceMap.asStateFlow()
 
     fun startTracking(userId: String) {
-        if (userId.isEmpty()) return
+        if (userId.isEmpty() || db == null) return
         
         currentUserRef = db.getReference("status/$userId")
         
-        connectedListener = connectedRef.addValueEventListener(object : ValueEventListener {
+        connectedListener = connectedRef?.addValueEventListener(object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
                 val connected = snapshot.getValue(Boolean::class.java) ?: false
                 if (connected) {
@@ -41,7 +40,6 @@ class PresenceManager {
                                 "last_changed" to com.google.firebase.database.ServerValue.TIMESTAMP
                             )
                         ).addOnCompleteListener {
-                            // The onDisconnect is set, now update the current status to online
                             con.setValue(
                                 mapOf(
                                     "state" to "online",
@@ -52,32 +50,29 @@ class PresenceManager {
                     }
                 }
             }
-
             override fun onCancelled(error: DatabaseError) {
                 Log.w("PresenceManager", "Listener was cancelled")
             }
         })
         
-        // Listen to all users' statuses
         db.getReference("status").addValueEventListener(object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
                 val newMap = mutableMapOf<String, PresenceState>()
                 for (child in snapshot.children) {
-                    val userId = child.key ?: continue
+                    val uid = child.key ?: continue
                     val state = child.child("state").getValue(String::class.java) ?: "offline"
                     val lastChanged = child.child("last_changed").getValue(Long::class.java) ?: 0L
-                    newMap[userId] = PresenceState(state, lastChanged)
+                    newMap[uid] = PresenceState(state, lastChanged)
                 }
                 _presenceMap.value = newMap
             }
-
             override fun onCancelled(error: DatabaseError) {
             }
         })
     }
 
     fun stopTracking() {
-        connectedListener?.let { connectedRef.removeEventListener(it) }
+        connectedListener?.let { connectedRef?.removeEventListener(it) }
         currentUserRef?.setValue(
             mapOf(
                 "state" to "offline",
@@ -87,7 +82,6 @@ class PresenceManager {
     }
 }
 
-// Singleton for easy access across ViewModels if needed
 object PresenceManagerInstance {
     val instance = PresenceManager()
 }
