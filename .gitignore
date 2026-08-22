@@ -26,3 +26,4 @@ keystore.properties
 !debug.keystore
 !debug.keystore.base64
 
+*.p12
