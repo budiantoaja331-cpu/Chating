@@ -47,40 +47,12 @@ jobs:
         run: |
           if [ -n "$GOOGLE_SERVICES_JSON" ]; then
             echo "Menggunakan google-services.json dari GitHub Secrets..."
-            echo "$GOOGLE_SERVICES_JSON" > app/google-services.json
-          elif [ ! -f "app/google-services.json" ]; then
-            echo "Menyiapkan google-services.json standar..."
-            cat << 'EOF' > app/google-services.json
-            {
-              "project_info": {
-                "project_number": "123456789012",
-                "project_id": "chatmicall-app",
-                "storage_bucket": "chatmicall-app.appspot.com"
-              },
-              "client": [
-                {
-                  "client_info": {
-                    "mobilesdk_app_id": "1:123456789012:android:1234567890abcdef",
-                    "android_client_info": {
-                      "package_name": "com.chatmicall.app"
-                    }
-                  },
-                  "oauth_client": [],
-                  "api_key": [
-                    {
-                      "current_key": "AIzaSyDummyKeyForBuildVerification123"
-                    }
-                  ],
-                  "services": {
-                    "appinvite_service": {
-                      "other_platform_oauth_client": []
-                    }
-                  }
-                }
-              ],
-              "configuration_version": "1"
-            }
-            EOF
+            printf '%s' "$GOOGLE_SERVICES_JSON" > app/google-services.json
+          elif [ -f "app/google-services.json" ]; then
+            echo "Menggunakan app/google-services.json yang sudah ada di repositori..."
+          else
+            echo "Error: google-services.json tidak ditemukan!"
+            exit 1
           fi
 
       - name: Build Android App Bundle (AAB)
