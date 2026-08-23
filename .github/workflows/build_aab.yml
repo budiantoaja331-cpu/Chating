@@ -25,14 +25,16 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
 
-      - name: Create Debug Keystore
+      - name: Decode Keystore from Base64
+        env:
+          KEYSTORE_CONTENT: ${{ secrets.KEYSTORE_FILE }}
         run: |
-          keytool -genkey -v -keystore app/release.keystore \
-            -alias androiddebugkey \
-            -keyalg RSA -keysize 2048 -validity 10000 \
-            -storepass android -keypass android \
-            -dname "CN=ChatMicAll,O=App,C=ID"
-          echo "Keystore berhasil dibuat di app/release.keystore"
+          if [ -z "$KEYSTORE_CONTENT" ]; then
+            echo "Error: KEYSTORE_FILE secret tidak ditemukan!"
+            exit 1
+          fi
+          echo "$KEYSTORE_CONTENT" | base64 -d > app/release.keystore
+          echo "✅ Keystore berhasil didecode ke app/release.keystore"
 
       - name: Prepare Google Services JSON
         env:
@@ -54,6 +56,10 @@ jobs:
           ./gradlew bundleRelease --no-daemon -x lint
 
       - name: Sign AAB Bundle with jarsigner
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
           AAB_FILE=$(ls app/build/outputs/bundle/release/*.aab 2>/dev/null | head -n 1)
           if [ -z "$AAB_FILE" ]; then
@@ -62,16 +68,17 @@ jobs:
             exit 1
           fi
           
-          echo "Menandatangani: $AAB_FILE"
+          echo "📝 Menandatangani: $AAB_FILE"
           jarsigner -verbose -sigalg SHA256withRSA -digestalg SHA-256 \
             -keystore app/release.keystore \
-            -storepass android \
-            -keypass android \
-            "$AAB_FILE" androiddebugkey
+            -storepass "$KEYSTORE_PASSWORD" \
+            -keypass "$KEY_PASSWORD" \
+            "$AAB_FILE" "$KEY_ALIAS"
 
       - name: Verify AAB Signature
         run: |
           AAB_FILE=$(ls app/build/outputs/bundle/release/*.aab | head -n 1)
+          echo "✅ Verifying signature..."
           jarsigner -verify -verbose "$AAB_FILE"
 
       - name: Upload Signed AAB Artifact
