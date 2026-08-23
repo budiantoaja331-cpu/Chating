@@ -25,21 +25,14 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
 
-      - name: Prepare Keystore
-        env:
-          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+      - name: Create Debug Keystore
         run: |
-          if [ -n "$KEYSTORE_BASE64" ]; then
-            echo "Menggunakan Keystore dari GitHub Secrets..."
-            echo "$KEYSTORE_BASE64" | base64 --decode > app/release.keystore
-          else
-            echo "Keystore Secrets belum diatur, membuat keystore otomatis untuk penandatanganan AAB..."
-            keytool -genkey -v -keystore app/release.keystore \
-              -alias androiddebugkey \
-              -keyalg RSA -keysize 2048 -validity 10000 \
-              -storepass android -keypass android \
-              -dname "CN=ChatMicAll,O=App,C=ID"
-          fi
+          keytool -genkey -v -keystore app/release.keystore \
+            -alias androiddebugkey \
+            -keyalg RSA -keysize 2048 -validity 10000 \
+            -storepass android -keypass android \
+            -dname "CN=ChatMicAll,O=App,C=ID"
+          echo "Keystore berhasil dibuat di app/release.keystore"
 
       - name: Prepare Google Services JSON
         env:
@@ -56,35 +49,42 @@ jobs:
           fi
 
       - name: Build Android App Bundle (AAB)
-        run: gradle :app:bundleRelease --no-daemon
+        run: |
+          chmod +x gradlew
+          ./gradlew bundleRelease --no-daemon -x lint
 
-      - name: Sign AAB Bundle
-        env:
-          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
-          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+      - name: Sign AAB Bundle with jarsigner
+        run: |
+          AAB_FILE=$(ls app/build/outputs/bundle/release/*.aab 2>/dev/null | head -n 1)
+          if [ -z "$AAB_FILE" ]; then
+            echo "Error: AAB file tidak ditemukan!"
+            ls -la app/build/outputs/bundle/release/
+            exit 1
+          fi
+          
+          echo "Menandatangani: $AAB_FILE"
+          jarsigner -verbose -sigalg SHA256withRSA -digestalg SHA-256 \
+            -keystore app/release.keystore \
+            -storepass android \
+            -keypass android \
+            "$AAB_FILE" androiddebugkey
+
+      - name: Verify AAB Signature
         run: |
           AAB_FILE=$(ls app/build/outputs/bundle/release/*.aab | head -n 1)
-          if [ -n "$KEYSTORE_BASE64" ]; then
-            echo "Penandatanganan AAB menggunakan Production Keystore..."
-            jarsigner -verbose -sigalg SHA256withRSA -digestalg SHA-256 \
-              -keystore app/release.keystore \
-              -storepass "$KEYSTORE_PASSWORD" \
-              -keypass "$KEY_PASSWORD" \
-              "$AAB_FILE" "$KEY_ALIAS"
-          else
-            echo "Penandatanganan AAB menggunakan Auto Keystore..."
-            jarsigner -verbose -sigalg SHA256withRSA -digestalg SHA-256 \
-              -keystore app/release.keystore \
-              -storepass android \
-              -keypass android \
-              "$AAB_FILE" androiddebugkey
-          fi
+          jarsigner -verify -verbose "$AAB_FILE"
 
       - name: Upload Signed AAB Artifact
         uses: actions/upload-artifact@v4
         with:
           name: chatmicall-release-signed
           path: app/build/outputs/bundle/release/*.aab
+          retention-days: 7
 
+      - name: Create Release Notes
+        run: |
+          echo "# 🎉 ChatMicAll Release" > release_notes.md
+          echo "- Build Date: $(date)" >> release_notes.md
+          echo "- Commit: ${{ github.sha }}" >> release_notes.md
+          echo "- Branch: ${{ github.ref }}" >> release_notes.md
+          cat release_notes.md
