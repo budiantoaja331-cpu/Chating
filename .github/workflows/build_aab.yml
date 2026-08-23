@@ -25,16 +25,30 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
 
+      - name: Create Gradle Properties for Signing
+        run: |
+          cat > gradle.properties << 'EOF'
+          org.gradle.jvmargs=-Xmx2048m
+          android.useAndroidX=true
+          android.enableJetifier=true
+          KEYSTORE_FILE=app/release.keystore
+          KEYSTORE_PASSWORD=${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS=${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD=${{ secrets.KEY_PASSWORD }}
+          EOF
+          echo "✅ Gradle properties created"
+
       - name: Decode Keystore from Base64
         env:
           KEYSTORE_CONTENT: ${{ secrets.KEYSTORE_FILE }}
         run: |
           if [ -z "$KEYSTORE_CONTENT" ]; then
-            echo "Error: KEYSTORE_FILE secret tidak ditemukan!"
-            exit 1
+            echo "⚠️ WARNING: KEYSTORE_FILE secret kosong"
+          else
+            echo "$KEYSTORE_CONTENT" | base64 -d > app/release.keystore
+            echo "✅ Keystore berhasil didecode"
+            ls -lh app/release.keystore
           fi
-          echo "$KEYSTORE_CONTENT" | base64 -d > app/release.keystore
-          echo "✅ Keystore berhasil didecode ke app/release.keystore"
 
       - name: Prepare Google Services JSON
         env:
@@ -44,10 +58,9 @@ jobs:
             echo "Menggunakan google-services.json dari GitHub Secrets..."
             printf '%s' "$GOOGLE_SERVICES_JSON" > app/google-services.json
           elif [ -f "app/google-services.json" ]; then
-            echo "Menggunakan app/google-services.json yang sudah ada di repositori..."
+            echo "Menggunakan app/google-services.json yang sudah ada..."
           else
-            echo "Error: google-services.json tidak ditemukan!"
-            exit 1
+            echo "⚠️ google-services.json tidak ditemukan (opsional)"
           fi
 
       - name: Build Android App Bundle (AAB)
@@ -56,30 +69,34 @@ jobs:
           ./gradlew bundleRelease --no-daemon -x lint
 
       - name: Sign AAB Bundle with jarsigner
-        env:
-          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
           AAB_FILE=$(ls app/build/outputs/bundle/release/*.aab 2>/dev/null | head -n 1)
           if [ -z "$AAB_FILE" ]; then
-            echo "Error: AAB file tidak ditemukan!"
+            echo "❌ Error: AAB file tidak ditemukan!"
             ls -la app/build/outputs/bundle/release/
             exit 1
           fi
           
+          if [ ! -f "app/release.keystore" ]; then
+            echo "❌ Error: Keystore file tidak ditemukan di app/release.keystore"
+            exit 1
+          fi
+          
           echo "📝 Menandatangani: $AAB_FILE"
+          echo "🔐 Menggunakan keystore: app/release.keystore"
+          echo "📌 Alias: ${{ secrets.KEY_ALIAS }}"
+          
           jarsigner -verbose -sigalg SHA256withRSA -digestalg SHA-256 \
             -keystore app/release.keystore \
-            -storepass "$KEYSTORE_PASSWORD" \
-            -keypass "$KEY_PASSWORD" \
-            "$AAB_FILE" "$KEY_ALIAS"
+            -storepass "${{ secrets.KEYSTORE_PASSWORD }}" \
+            -keypass "${{ secrets.KEY_PASSWORD }}" \
+            "$AAB_FILE" "${{ secrets.KEY_ALIAS }}"
 
       - name: Verify AAB Signature
         run: |
           AAB_FILE=$(ls app/build/outputs/bundle/release/*.aab | head -n 1)
-          echo "✅ Verifying signature..."
-          jarsigner -verify -verbose "$AAB_FILE"
+          echo "✅ Verifying signature for: $AAB_FILE"
+          jarsigner -verify -verbose -certs "$AAB_FILE"
 
       - name: Upload Signed AAB Artifact
         uses: actions/upload-artifact@v4
@@ -94,4 +111,5 @@ jobs:
           echo "- Build Date: $(date)" >> release_notes.md
           echo "- Commit: ${{ github.sha }}" >> release_notes.md
           echo "- Branch: ${{ github.ref }}" >> release_notes.md
+          echo "- Signed with keystore: ${{ secrets.KEY_ALIAS }}" >> release_notes.md
           cat release_notes.md
